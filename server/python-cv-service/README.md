@@ -97,14 +97,20 @@ server/python-cv-service/
 
 ## 5. 依赖安装
 
-建议先使用 Python 3.11。
+建议先使用 Python 3.11+。
+
+> 说明：`venv` 会“继承你用来创建它的那个 Python 解释器版本”。
+> 如果你用 `python3 -m venv .venv` 创建虚拟环境，而你机器上的 `python3` 实际是 3.9.x，
+> 那这个服务就会跑在 3.9.x 上，进而出现某些依赖（例如较新的 NumPy）无法安装的问题。
 
 安装依赖：
 
 ```bash
 cd server/python-cv-service
+python3 --version  # 确认是 3.11+
 python3 -m venv .venv
 source .venv/bin/activate
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
@@ -192,5 +198,11 @@ server/python-cv-service/models/durian-best.pt
 
 如果你下一步要继续推进，最自然的顺序是：
 
-1. 我帮你补一份“榴莲数据集如何标注和训练 YOLO”的傻瓜式说明
-2. 我再把“编号 + 标注图生成”也一起写进这个微服务或主后端
+1. 先看新手训练文档：[YOLO-TRAINING-BEGINNER.md](/Users/liujiaqi/code/JS/durian-helper-mini-program/server/python-cv-service/YOLO-TRAINING-BEGINNER.md)
+2. 再开始准备数据集和标注
+3. 训练出 `best.pt` 后放进 `models/`
+
+后续如果继续做工程化，再补：
+
+1. “编号 + 标注图生成”
+2. “训练脚本 + 推理脚本”
