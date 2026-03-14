@@ -39,6 +39,7 @@ from typing import Iterable, Optional
 
 
 SUPPORTED_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
+DEFAULT_DATASET_ROOT = Path(__file__).resolve().parents[1] / "datasets" / "durian"
 
 
 @dataclass(frozen=True)
@@ -268,13 +269,13 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--images-dir",
         type=Path,
-        default=Path("server/python-cv-service/datasets/durian/images/train"),
+        default=DEFAULT_DATASET_ROOT / "images" / "train",
         help="Target images directory (non-recursive).",
     )
     parser.add_argument(
         "--labels-dir",
         type=Path,
-        default=Path("server/python-cv-service/datasets/durian/labels/train"),
+        default=DEFAULT_DATASET_ROOT / "labels" / "train",
         help="Paired labels directory (YOLO .txt). Use --no-labels to disable.",
     )
     parser.add_argument("--no-labels", action="store_true", help="Disable label renaming.")

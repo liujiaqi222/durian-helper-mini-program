@@ -2,12 +2,18 @@
 
 这份文档只覆盖当前仓库里的这套数据和训练路径，目标是把你已经标好的榴莲框尽快训练成第一版可用模型。
 
+下面的命令示例统一约定：
+
+```bash
+CV_DIR=python-cv-service
+```
+
 ## 1. 当前数据状态
 
 当前数据集目录：
 
 ```text
-server/python-cv-service/datasets/durian/
+python-cv-service/datasets/durian/
 ├── images
 │   ├── train
 │   └── val
@@ -20,8 +26,8 @@ server/python-cv-service/datasets/durian/
 数据切分由脚本生成：
 
 ```bash
-cd /Users/liujiaqi/code/JS/durian-helper-mini-program
-python3 server/python-cv-service/scripts/split_yolo_dataset.py
+CV_DIR=python-cv-service
+python3 "$CV_DIR/scripts/split_yolo_dataset.py"
 ```
 
 默认规则：
@@ -48,7 +54,8 @@ python3 server/python-cv-service/scripts/split_yolo_dataset.py
 先进入 Python 虚拟环境：
 
 ```bash
-cd /Users/liujiaqi/code/JS/durian-helper-mini-program/server/python-cv-service
+CV_DIR=python-cv-service
+cd "$CV_DIR"
 source .venv/bin/activate
 ```
 
@@ -58,7 +65,7 @@ source .venv/bin/activate
 
 ```bash
 yolo detect train \
-  data=/Users/liujiaqi/code/JS/durian-helper-mini-program/server/python-cv-service/datasets/durian/data.yaml \
+  data=datasets/durian/data.yaml \
   model=yolov8n.pt \
   epochs=50 \
   imgsz=640 \
@@ -72,7 +79,7 @@ yolo detect train \
 
 ```bash
 yolo detect train \
-  data=/Users/liujiaqi/code/JS/durian-helper-mini-program/server/python-cv-service/datasets/durian/data.yaml \
+  data=datasets/durian/data.yaml \
   model=yolov8n.pt \
   epochs=80 \
   imgsz=640 \
@@ -87,13 +94,13 @@ yolo detect train \
 Ultralytics 默认会输出到：
 
 ```text
-server/python-cv-service/runs/detect/train/
+runs/detect/train/
 ```
 
 你最关心的是：
 
 ```text
-server/python-cv-service/runs/detect/train/weights/best.pt
+runs/detect/train/weights/best.pt
 ```
 
 这就是后面接回微服务的模型文件。
@@ -110,15 +117,15 @@ server/python-cv-service/runs/detect/train/weights/best.pt
 
 ```bash
 yolo detect predict \
-  model=/Users/liujiaqi/code/JS/durian-helper-mini-program/server/python-cv-service/runs/detect/train/weights/best.pt \
-  source=/Users/liujiaqi/code/JS/durian-helper-mini-program/server/python-cv-service/datasets/durian/images/val \
+  model=runs/detect/train/weights/best.pt \
+  source=datasets/durian/images/val \
   conf=0.35
 ```
 
 结果通常会出现在：
 
 ```text
-server/python-cv-service/runs/detect/predict/
+runs/detect/predict/
 ```
 
 ## 6. 什么时候该继续补数据
@@ -137,7 +144,7 @@ server/python-cv-service/runs/detect/predict/
 当你确认 `best.pt` 效果还可以时，复制到：
 
 ```text
-server/python-cv-service/models/durian-best.pt
+python-cv-service/models/durian-best.pt
 ```
 
 当前微服务默认就是按这个路径读取模型。

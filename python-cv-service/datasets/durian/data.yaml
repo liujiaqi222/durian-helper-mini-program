@@ -1,4 +1,4 @@
-path: /Users/liujiaqi/code/JS/durian-helper-mini-program/server/python-cv-service/datasets/durian
+path: .
 train: images/train
 val: images/val
 

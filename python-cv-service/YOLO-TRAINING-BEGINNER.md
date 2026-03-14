@@ -10,6 +10,12 @@
 
 如果你是第一次做模型训练，不要一开始追求“高精度”和“论文级效果”。先把完整流程跑通，再慢慢优化。
 
+下面的命令示例统一约定：
+
+```bash
+CV_DIR=python-cv-service
+```
+
 ## 1. 先理解你现在到底要训练什么
 
 你现在训练的是“目标检测模型”，不是“分类模型”。
@@ -234,7 +240,7 @@ YOLO 的单个标注文件通常是纯文本，每一行代表一个目标：
 在数据集目录下创建 `data.yaml`：
 
 ```yaml
-path: /绝对路径/datasets/durian
+path: .
 train: images/train
 val: images/val
 
@@ -244,7 +250,8 @@ names:
 
 说明：
 
-- `path` 最简单的写法就是绝对路径
+- `path: .` 表示以当前 `data.yaml` 所在目录作为数据集根目录
+- 这样项目根目录改名、仓库迁移位置后，不需要再回头改配置
 - `names` 里定义类别
 - 这里只有一个类别，所以 `0: durian`
 
@@ -253,9 +260,10 @@ names:
 假设你已经进入虚拟环境，并且数据集已经准备好，可以用最简单的方式先跑起来：
 
 ```bash
-cd /Users/liujiaqi/code/JS/durian-helper-mini-program/server/python-cv-service
+CV_DIR=python-cv-service
+cd "$CV_DIR"
 source .venv/bin/activate
-yolo detect train data=/你的数据集路径/data.yaml model=yolov8n.pt epochs=50 imgsz=640
+yolo detect train data=datasets/durian/data.yaml model=yolov8n.pt epochs=50 imgsz=640
 ```
 
 你只需要先理解这几个参数：
@@ -357,13 +365,13 @@ yolo detect predict \
 训练完成后，把 `best.pt` 复制到下面这个位置：
 
 ```text
-server/python-cv-service/models/durian-best.pt
+python-cv-service/models/durian-best.pt
 ```
 
 也就是最终变成：
 
 ```text
-server/python-cv-service/
+python-cv-service/
 ├── models
 │   └── durian-best.pt
 ```

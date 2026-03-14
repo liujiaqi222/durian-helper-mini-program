@@ -27,6 +27,7 @@ from typing import Iterable
 
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
+DEFAULT_DATASET_ROOT = Path(__file__).resolve().parents[1] / "datasets" / "durian"
 
 
 @dataclass(frozen=True)
@@ -156,7 +157,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--dataset-root",
         type=Path,
-        default=Path("server/python-cv-service/datasets/durian"),
+        default=DEFAULT_DATASET_ROOT,
         help="Dataset root containing images/ and labels/ subdirectories.",
     )
     parser.add_argument(

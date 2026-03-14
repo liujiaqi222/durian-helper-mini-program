@@ -7,12 +7,18 @@
 3. 让你直接在网页里给榴莲图片画框
 4. 最后导出为 YOLO 可训练的数据
 
+下面的命令示例统一约定：
+
+```bash
+CV_DIR=python-cv-service
+```
+
 ## 目录约定
 
 当前项目里的榴莲数据目录是：
 
 ```text
-server/python-cv-service/datasets/durian/
+python-cv-service/datasets/durian/
 ├── images
 │   ├── train
 │   └── val
@@ -24,7 +30,7 @@ server/python-cv-service/datasets/durian/
 本地 `CVAT` 环境会把下面这个目录挂载到容器内的 `/home/django/share`：
 
 ```text
-server/python-cv-service/datasets
+python-cv-service/datasets
 ```
 
 这样在 `CVAT` 里创建任务时，可以直接从共享目录里选择：
@@ -38,8 +44,8 @@ durian/images/train
 先执行：
 
 ```bash
-cd /Users/liujiaqi/code/JS/durian-helper-mini-program
-bash server/python-cv-service/scripts/cvat_local.sh prepare
+CV_DIR=python-cv-service
+bash "$CV_DIR/scripts/cvat_local.sh" prepare
 ```
 
 这一步会做两件事：
@@ -47,7 +53,7 @@ bash server/python-cv-service/scripts/cvat_local.sh prepare
 1. 如果本地还没有 `CVAT` 源码，就克隆官方仓库到：
 
 ```text
-server/python-cv-service/.tools/cvat
+python-cv-service/.tools/cvat
 ```
 
 2. 生成本项目专用的 `docker-compose.override.yml`，把你的数据目录挂进去
@@ -57,22 +63,22 @@ server/python-cv-service/.tools/cvat
 启动：
 
 ```bash
-cd /Users/liujiaqi/code/JS/durian-helper-mini-program
-bash server/python-cv-service/scripts/cvat_local.sh start
+CV_DIR=python-cv-service
+bash "$CV_DIR/scripts/cvat_local.sh" start
 ```
 
 停止：
 
 ```bash
-cd /Users/liujiaqi/code/JS/durian-helper-mini-program
-bash server/python-cv-service/scripts/cvat_local.sh stop
+CV_DIR=python-cv-service
+bash "$CV_DIR/scripts/cvat_local.sh" stop
 ```
 
 查看状态：
 
 ```bash
-cd /Users/liujiaqi/code/JS/durian-helper-mini-program
-bash server/python-cv-service/scripts/cvat_local.sh status
+CV_DIR=python-cv-service
+bash "$CV_DIR/scripts/cvat_local.sh" status
 ```
 
 默认访问地址：
@@ -116,7 +122,7 @@ YOLO 1.1
 导出后需要把结果整理成：
 
 ```text
-server/python-cv-service/datasets/durian/
+python-cv-service/datasets/durian/
 ├── images/train
 ├── images/val
 ├── labels/train

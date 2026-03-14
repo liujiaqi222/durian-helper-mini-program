@@ -7,8 +7,11 @@ set -euo pipefail
 # read the existing dataset tree directly, so annotation tasks can import
 # `durian/images/train` from local storage instead of re-uploading files.
 
-ROOT_DIR="/Users/liujiaqi/code/JS/durian-helper-mini-program"
-PY_CV_DIR="${ROOT_DIR}/server/python-cv-service"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve paths from the script location so the repo can be moved or renamed
+# without having to keep hard-coded absolute paths in sync.
+PY_CV_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+ROOT_DIR="$(cd "${PY_CV_DIR}/.." && pwd)"
 CVAT_DIR="${PY_CV_DIR}/.tools/cvat"
 DATASETS_DIR="${PY_CV_DIR}/datasets"
 OVERRIDE_FILE="${CVAT_DIR}/docker-compose.override.yml"
@@ -17,10 +20,10 @@ CVAT_REPO_URL="https://github.com/cvat-ai/cvat.git"
 print_usage() {
   cat <<'EOF'
 Usage:
-  bash server/python-cv-service/scripts/cvat_local.sh prepare
-  bash server/python-cv-service/scripts/cvat_local.sh start
-  bash server/python-cv-service/scripts/cvat_local.sh stop
-  bash server/python-cv-service/scripts/cvat_local.sh status
+  bash python-cv-service/scripts/cvat_local.sh prepare
+  bash python-cv-service/scripts/cvat_local.sh start
+  bash python-cv-service/scripts/cvat_local.sh stop
+  bash python-cv-service/scripts/cvat_local.sh status
 
 Commands:
   prepare  Clone CVAT if needed and write docker-compose.override.yml
