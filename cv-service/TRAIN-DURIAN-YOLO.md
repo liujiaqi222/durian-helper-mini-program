@@ -5,7 +5,7 @@
 下面的命令示例统一约定：
 
 ```bash
-CV_DIR=python-cv-service
+CV_DIR=cv-service
 ```
 
 ## 1. 当前数据状态
@@ -13,7 +13,7 @@ CV_DIR=python-cv-service
 当前数据集目录：
 
 ```text
-python-cv-service/datasets/durian/
+cv-service/datasets/durian/
 ├── images
 │   ├── train
 │   └── val
@@ -26,7 +26,7 @@ python-cv-service/datasets/durian/
 数据切分由脚本生成：
 
 ```bash
-CV_DIR=python-cv-service
+CV_DIR=cv-service
 python3 "$CV_DIR/scripts/split_yolo_dataset.py"
 ```
 
@@ -54,7 +54,7 @@ python3 "$CV_DIR/scripts/split_yolo_dataset.py"
 先进入 Python 虚拟环境：
 
 ```bash
-CV_DIR=python-cv-service
+CV_DIR=cv-service
 cd "$CV_DIR"
 source .venv/bin/activate
 ```
@@ -144,7 +144,7 @@ runs/detect/predict/
 当你确认 `best.pt` 效果还可以时，复制到：
 
 ```text
-python-cv-service/models/durian-best.pt
+cv-service/models/durian-best.pt
 ```
 
 当前微服务默认就是按这个路径读取模型。

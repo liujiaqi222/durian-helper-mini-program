@@ -20,10 +20,10 @@ CVAT_REPO_URL="https://github.com/cvat-ai/cvat.git"
 print_usage() {
   cat <<'EOF'
 Usage:
-  bash python-cv-service/scripts/cvat_local.sh prepare
-  bash python-cv-service/scripts/cvat_local.sh start
-  bash python-cv-service/scripts/cvat_local.sh stop
-  bash python-cv-service/scripts/cvat_local.sh status
+  bash cv-service/scripts/cvat_local.sh prepare
+  bash cv-service/scripts/cvat_local.sh start
+  bash cv-service/scripts/cvat_local.sh stop
+  bash cv-service/scripts/cvat_local.sh status
 
 Commands:
   prepare  Clone CVAT if needed and write docker-compose.override.yml

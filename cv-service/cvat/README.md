@@ -10,7 +10,7 @@
 下面的命令示例统一约定：
 
 ```bash
-CV_DIR=python-cv-service
+CV_DIR=cv-service
 ```
 
 ## 目录约定
@@ -18,7 +18,7 @@ CV_DIR=python-cv-service
 当前项目里的榴莲数据目录是：
 
 ```text
-python-cv-service/datasets/durian/
+cv-service/datasets/durian/
 ├── images
 │   ├── train
 │   └── val
@@ -30,7 +30,7 @@ python-cv-service/datasets/durian/
 本地 `CVAT` 环境会把下面这个目录挂载到容器内的 `/home/django/share`：
 
 ```text
-python-cv-service/datasets
+cv-service/datasets
 ```
 
 这样在 `CVAT` 里创建任务时，可以直接从共享目录里选择：
@@ -44,7 +44,7 @@ durian/images/train
 先执行：
 
 ```bash
-CV_DIR=python-cv-service
+CV_DIR=cv-service
 bash "$CV_DIR/scripts/cvat_local.sh" prepare
 ```
 
@@ -53,7 +53,7 @@ bash "$CV_DIR/scripts/cvat_local.sh" prepare
 1. 如果本地还没有 `CVAT` 源码，就克隆官方仓库到：
 
 ```text
-python-cv-service/.tools/cvat
+cv-service/.tools/cvat
 ```
 
 2. 生成本项目专用的 `docker-compose.override.yml`，把你的数据目录挂进去
@@ -63,21 +63,21 @@ python-cv-service/.tools/cvat
 启动：
 
 ```bash
-CV_DIR=python-cv-service
+CV_DIR=cv-service
 bash "$CV_DIR/scripts/cvat_local.sh" start
 ```
 
 停止：
 
 ```bash
-CV_DIR=python-cv-service
+CV_DIR=cv-service
 bash "$CV_DIR/scripts/cvat_local.sh" stop
 ```
 
 查看状态：
 
 ```bash
-CV_DIR=python-cv-service
+CV_DIR=cv-service
 bash "$CV_DIR/scripts/cvat_local.sh" status
 ```
 
@@ -122,7 +122,7 @@ YOLO 1.1
 导出后需要把结果整理成：
 
 ```text
-python-cv-service/datasets/durian/
+cv-service/datasets/durian/
 ├── images/train
 ├── images/val
 ├── labels/train

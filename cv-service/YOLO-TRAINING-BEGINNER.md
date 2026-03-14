@@ -13,7 +13,7 @@
 下面的命令示例统一约定：
 
 ```bash
-CV_DIR=python-cv-service
+CV_DIR=cv-service
 ```
 
 ## 1. 先理解你现在到底要训练什么
@@ -260,7 +260,7 @@ names:
 假设你已经进入虚拟环境，并且数据集已经准备好，可以用最简单的方式先跑起来：
 
 ```bash
-CV_DIR=python-cv-service
+CV_DIR=cv-service
 cd "$CV_DIR"
 source .venv/bin/activate
 yolo detect train data=datasets/durian/data.yaml model=yolov8n.pt epochs=50 imgsz=640
@@ -365,13 +365,13 @@ yolo detect predict \
 训练完成后，把 `best.pt` 复制到下面这个位置：
 
 ```text
-python-cv-service/models/durian-best.pt
+cv-service/models/durian-best.pt
 ```
 
 也就是最终变成：
 
 ```text
-python-cv-service/
+cv-service/
 ├── models
 │   └── durian-best.pt
 ```

@@ -10,10 +10,10 @@
 
 ## 1. 这个微服务解决什么问题
 
-下面的命令示例会先约定一个目录别名，减少反复输入 `python-cv-service`：
+下面的命令示例会先约定一个目录别名，减少反复输入 `cv-service`：
 
 ```bash
-CV_DIR=python-cv-service
+CV_DIR=cv-service
 ```
 
 对你这个项目来说，YOLO 微服务负责的是第一段：
@@ -76,7 +76,7 @@ CV_DIR=python-cv-service
 ## 4. 目录说明
 
 ```text
-python-cv-service/
+cv-service/
 ├── README.md
 ├── requirements.txt
 └── app
@@ -112,7 +112,7 @@ python-cv-service/
 安装依赖：
 
 ```bash
-CV_DIR=python-cv-service
+CV_DIR=cv-service
 cd "$CV_DIR"
 python3 --version  # 确认是 3.11+
 python3 -m venv .venv
@@ -124,7 +124,7 @@ pip install -r requirements.txt
 ## 6. 如何启动
 
 ```bash
-CV_DIR=python-cv-service
+CV_DIR=cv-service
 cd "$CV_DIR"
 uvicorn app.main:app --reload --port 8010
 ```
@@ -143,7 +143,7 @@ uvicorn app.main:app --reload --port 8010
 注意：这个权重文件现在还没有创建。你后面训练好模型后，把文件放到：
 
 ```text
-python-cv-service/models/durian-best.pt
+cv-service/models/durian-best.pt
 ```
 
 即可。
