@@ -198,7 +198,7 @@ server/python-cv-service/models/durian-best.pt
 
 如果你下一步要继续推进，最自然的顺序是：
 
-1. 先看新手训练文档：[YOLO-TRAINING-BEGINNER.md](/Users/liujiaqi/code/JS/durian-helper-mini-program/server/python-cv-service/YOLO-TRAINING-BEGINNER.md)
+1. 先看新手训练文档：YOLO-TRAINING-BEGINNER.md
 2. 再开始准备数据集和标注
 3. 训练出 `best.pt` 后放进 `models/`
 
