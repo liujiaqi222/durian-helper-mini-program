@@ -261,9 +261,14 @@ names:
 
 ```bash
 CV_DIR=cv-service
-cd "$CV_DIR"
-source .venv/bin/activate
-yolo detect train data=datasets/durian/data.yaml model=yolov8n.pt epochs=50 imgsz=640
+source "$CV_DIR/.venv/bin/activate"
+yolo detect train \
+  data="$CV_DIR/datasets/durian/data.yaml" \
+  model="$CV_DIR/yolov8n.pt" \
+  project="$CV_DIR/runs" \
+  name=train \
+  epochs=50 \
+  imgsz=640
 ```
 
 你只需要先理解这几个参数：
@@ -273,6 +278,9 @@ yolo detect train data=datasets/durian/data.yaml model=yolov8n.pt epochs=50 imgs
 - `model`
   - 训练起点模型
   - `yolov8n.pt` 是比较轻量的起点，适合先跑通
+- `project`
+  - 明确指定训练产物输出目录
+  - 这里固定写到 `cv-service/runs`，避免你在项目根目录执行时把结果写歪
 - `epochs`
   - 训练轮数
   - 可以先用 `50`
@@ -286,8 +294,10 @@ yolo detect train data=datasets/durian/data.yaml model=yolov8n.pt epochs=50 imgs
 
 ```bash
 yolo detect train \
-  data=/你的数据集路径/data.yaml \
-  model=yolov8n.pt \
+  data="$CV_DIR/datasets/durian/data.yaml" \
+  model="$CV_DIR/yolov8n.pt" \
+  project="$CV_DIR/runs" \
+  name=train \
   epochs=80 \
   imgsz=640 \
   batch=8 \
@@ -312,7 +322,7 @@ yolo detect train \
 Ultralytics 一般会把结果输出到类似目录：
 
 ```text
-runs/detect/train/
+cv-service/runs/detect/train/
 ```
 
 里面你重点关注两个东西：
@@ -323,7 +333,7 @@ runs/detect/train/
 其中最重要的是：
 
 ```text
-runs/detect/train/weights/best.pt
+cv-service/runs/detect/train/weights/best.pt
 ```
 
 这就是你后面要接入微服务的模型文件。
@@ -347,12 +357,14 @@ runs/detect/train/weights/best.pt
 
 ```bash
 yolo detect predict \
-  model=runs/detect/train/weights/best.pt \
+  model="$CV_DIR/runs/detect/train/weights/best.pt" \
   source=/你的测试图片目录 \
-  conf=0.35
+  conf=0.35 \
+  project="$CV_DIR/runs" \
+  name=predict
 ```
 
-运行后会在 `runs/detect/predict/` 下生成带框的结果图。
+运行后会在 `cv-service/runs/detect/predict/` 下生成带框的结果图。
 
 你重点看三件事：
 

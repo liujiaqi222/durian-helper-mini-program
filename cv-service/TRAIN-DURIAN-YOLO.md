@@ -55,9 +55,13 @@ python3 "$CV_DIR/scripts/split_yolo_dataset.py"
 
 ```bash
 CV_DIR=cv-service
-cd "$CV_DIR"
-source .venv/bin/activate
+source "$CV_DIR/.venv/bin/activate"
 ```
+
+说明：
+
+1. 这里故意不强依赖 `cd "$CV_DIR"`，是为了避免你在项目根目录执行时，`runs/` 又被写回仓库根目录
+2. 下面的命令会显式把训练与预测产物输出到 `cv-service/runs/`
 
 ### 3.1 CPU 最稳妥起步命令
 
@@ -65,8 +69,10 @@ source .venv/bin/activate
 
 ```bash
 yolo detect train \
-  data=datasets/durian/data.yaml \
-  model=yolov8n.pt \
+  data="$CV_DIR/datasets/durian/data.yaml" \
+  model="$CV_DIR/yolov8n.pt" \
+  project="$CV_DIR/runs" \
+  name=train \
   epochs=50 \
   imgsz=640 \
   batch=4 \
@@ -79,8 +85,10 @@ yolo detect train \
 
 ```bash
 yolo detect train \
-  data=datasets/durian/data.yaml \
-  model=yolov8n.pt \
+  data="$CV_DIR/datasets/durian/data.yaml" \
+  model="$CV_DIR/yolov8n.pt" \
+  project="$CV_DIR/runs" \
+  name=train \
   epochs=80 \
   imgsz=640 \
   batch=8 \
@@ -94,13 +102,13 @@ yolo detect train \
 Ultralytics 默认会输出到：
 
 ```text
-runs/detect/train/
+cv-service/runs/detect/train/
 ```
 
 你最关心的是：
 
 ```text
-runs/detect/train/weights/best.pt
+cv-service/runs/detect/train/weights/best.pt
 ```
 
 这就是后面接回微服务的模型文件。
@@ -117,15 +125,17 @@ runs/detect/train/weights/best.pt
 
 ```bash
 yolo detect predict \
-  model=runs/detect/train/weights/best.pt \
-  source=datasets/durian/images/val \
-  conf=0.35
+  model="$CV_DIR/runs/detect/train/weights/best.pt" \
+  source="$CV_DIR/datasets/durian/images/val" \
+  conf=0.35 \
+  project="$CV_DIR/runs" \
+  name=predict
 ```
 
 结果通常会出现在：
 
 ```text
-runs/detect/predict/
+cv-service/runs/detect/predict/
 ```
 
 ## 6. 什么时候该继续补数据
