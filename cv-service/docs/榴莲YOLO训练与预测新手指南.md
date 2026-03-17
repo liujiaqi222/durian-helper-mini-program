@@ -172,7 +172,7 @@ YOLO 标签文件是纯文本，每一行表示一个框，例如：
 当前仓库已经使用下面这个配置：
 
 ```yaml
-path: .
+path: datasets/durian
 train: images/train
 val: images/val
 
@@ -180,7 +180,7 @@ names:
   0: durian
 ```
 
-这意味着 `data.yaml` 自己所在目录就是数据集根目录，所以仓库路径变动时不需要跟着改绝对路径。
+
 
 ## 5. 这个仓库如何切分 train / val
 
