@@ -37,7 +37,7 @@
   -> 整理成 YOLO 数据集目录
   -> 划分 train / val
   -> 执行训练
-  -> 得到 runs/detect/train/weights/best.pt
+  -> 得到 run/train/weights/best.pt
   -> 用 best.pt 跑 predict 验证效果
   -> 复制到 models/durian-best.pt
   -> 由微服务加载并对外提供检测能力
@@ -51,9 +51,9 @@
 | 标注 | 给每个榴莲画框 | YOLO 标签 `.txt` |
 | 数据整理 | 放进固定目录结构 | `datasets/durian/` |
 | 数据切分 | 分出训练集和验证集 | `images/train`、`images/val`、`labels/train`、`labels/val` |
-| 训练 | 用 Ultralytics YOLO 学习 | `runs/detect/train/` |
-| 选模型 | 使用最佳权重 | `runs/detect/train/weights/best.pt` |
-| 预测验收 | 用新模型看新图/验证集 | `runs/detect/predict/` |
+| 训练 | 用 Ultralytics YOLO 学习 | `run/train/` |
+| 选模型 | 使用最佳权重 | `run/train/weights/best.pt` |
+| 预测验收 | 用新模型看新图/验证集 | `run/predict/` |
 | 服务接入 | 替换线上/本地推理模型 | `models/durian-best.pt` |
 
 ## 3. 训练前需要准备什么
@@ -247,7 +247,7 @@ source .venv/bin/activate
 yolo detect train \
   data="datasets/durian/data.yaml" \
   model="yolov8n.pt" \
-  project="runs/detect" \
+  project="runs" \
   name="train" \
   epochs=50 \
   imgsz=640 \
@@ -259,13 +259,13 @@ yolo detect train \
 
 - `data`：数据集配置
 - `model`：训练起点，这里用轻量的 `yolov8n.pt`
-- `project` + `name`：训练结果写到 `runs/detect/train/`
+- `project` + `name`：训练结果写到 `run/train/`
 - `epochs=50`：先跑一版，验证流程和数据质量
 - `imgsz=640`：输入尺寸
 - `batch=4`：CPU 环境更稳妥的起步值
 - `device=cpu`：强制 CPU，避免新人一开始卡在 GPU 环境
 
-这里显式写 `project="runs/detect"`，是为了让输出目录稳定落在 `runs/detect/train/`。
+这里显式写 `project="run"`，是为了让输出目录稳定落在 `run/train/`。
 
 
 ### 7.2 如果你可以使用 GPU
@@ -278,7 +278,7 @@ source .venv/bin/activate
 yolo detect train \
   data="datasets/durian/data.yaml" \
   model="yolov8n.pt" \
-  project="runs/detect" \
+  project="runs" \
   name="train" \
   epochs=80 \
   imgsz=640 \
@@ -293,13 +293,13 @@ yolo detect train \
 训练输出目录默认是：
 
 ```text
-cv-service/runs/detect/train/
+cv-service/run/train/
 ```
 
 其中最常见的文件包括：
 
 ```text
-cv-service/runs/detect/train/
+cv-service/run/train/
 ├── args.yaml
 ├── results.csv
 ├── results.png
@@ -337,23 +337,164 @@ cv-service/runs/detect/train/
 对当前项目，训练完成后你最需要记住的是这一个文件：
 
 ```text
-cv-service/runs/detect/train/weights/best.pt
+cv-service/run/train/weights/best.pt
 ```
 
-## 9. 训练完以后怎样做预测
+## 9. 如何评估这次训练结果
+
+训练结束后，不要只盯着一个指标，也不要只看训练日志最后一行。对当前项目，更稳妥的评估方式是同时看 3 类信息：
+
+1. 指标文件
+2. 验证集可视化结果
+3. 没参与训练的新图表现
+
+### 9.1 先看哪些训练产物
+
+建议优先看下面这些文件：
+
+- `run/train/weights/best.pt`
+- `run/train/results.csv`
+- `run/train/results.png`
+- `run/train/val_batch*_pred.jpg`
+
+可以这样理解：
+
+- `best.pt`
+  - 当前这次训练里验证集表现最好的模型
+- `results.csv`
+  - 每一轮训练的指标明细
+- `results.png`
+  - 指标变化趋势图
+- `val_batch*_pred.jpg`
+  - 验证集样本上的预测可视化结果
+
+### 9.2 应该重点看什么
+
+对单类别检测任务，常见会看这些指标：
+
+- `precision`
+  - 误检多不多
+- `recall`
+  - 漏检多不多
+- `mAP50`
+  - 在较宽松 IoU 条件下，整体检测效果如何
+- `mAP50-95`
+  - 更严格的综合指标
+
+但在这个项目里，指标不是最终目标，业务可用性才是最终目标。所以实际判断时，优先问这几个问题：
+
+1. 大多数榴莲能不能被框出来
+2. 框的位置是否足够准，能支撑后续裁剪和编号
+3. 有没有明显把背景或其他物体误识别成榴莲
+4. 遇到遮挡、密集摆放、光线变化时，结果是否还能接受
+
+### 9.3 推荐的评估顺序
+
+建议按这个顺序判断是否值得保留这版模型：
+
+1. 确认 `best.pt` 是否正常产出
+2. 看 `results.png` 或 `results.csv`，确认指标是否收敛
+3. 看 `val_batch*_pred.jpg`，确认验证集框图是否合理
+4. 再拿几张没参与训练的新图跑 `predict`
+
+原因是：
+
+- 只看训练集效果，很容易误判
+- 只看验证集效果，也可能高估模型对真实新图的泛化能力
+
+### 9.4 什么情况下可以认为“这版模型值得保留”
+
+通常满足下面几条，就值得保留这版 `best.pt`：
+
+1. 验证集上比上一版更少漏检或误检
+2. 新图上没有明显退化
+3. 框的位置稳定，能支持后续业务链路
+4. 表现不是只在少数样例上好看，而是整体稳定
+
+如果某一版只是指标略高，但新图误检明显变多，通常不建议直接替换当前模型。
+
+## 10. 这次训练结束后，要不要基于上一次产物继续训练
+
+这个问题没有固定答案，关键看你是在做哪种事情：
+
+1. 继续同一个实验
+2. 做一轮新的干净实验
+3. 在上一版模型上做增量微调
+
+### 10.1 什么情况下不需要用上一次产物
+
+下面这些情况，更建议重新从 `yolov8n.pt` 开始训练：
+
+1. 你补了很多新数据
+2. 你修正了不少错误标注
+3. 你改了标注标准
+4. 你想让这轮实验结果更干净、更容易和上一轮比较
+
+这样做的好处是：你更容易判断“新数据和新标注到底带来了多少真实提升”。
+
+### 10.2 什么情况下可以基于上一版 `best.pt` 微调
+
+下面这些情况，可以考虑把上一版 `best.pt` 当作新的起点继续训练：
+
+1. 上一版已经有一定效果
+2. 这次只是小幅补数据
+3. 你只是微调训练参数
+4. 你想更快收敛
+
+示例命令：
+
+```bash
+cd cv-service
+source .venv/bin/activate
+yolo detect train \
+  data="datasets/durian/data.yaml" \
+  model="run/train/weights/best.pt" \
+  project="runs" \
+  name="train-finetune" \
+  epochs=30 \
+  imgsz=640 \
+  batch=4 \
+  device=cpu
+```
+
+这类训练更像“在已有能力上继续打磨”，而不是从零开始重新学。
+
+### 10.3 什么情况下应该用 `resume`
+
+如果上一次训练本来就没跑完，只是因为中断、断电或手工停止而结束，那么更适合用 `resume`，而不是拿 `best.pt` 重开一轮新训练。
+
+`resume` 的适用场景是：
+
+- 同一个实验还没跑完
+- 你想继续接着上一次状态训练
+
+它和“基于 `best.pt` 开新实验微调”不是一回事。
+
+### 10.4 对当前仓库的实际建议
+
+对这个榴莲检测项目，建议这样选：
+
+1. 第一次跑通流程时，用 `yolov8n.pt`
+2. 只补了少量数据时，可以试一次基于上一版 `best.pt` 的微调
+3. 大改标注或新增很多场景数据时，优先重新从 `yolov8n.pt` 训练
+
+如果你的目标是“这次结果能不能和上次公平比较”，优先重新训练。
+如果你的目标是“尽快把效果再推高一点”，可以先试微调。
+
+## 11. 训练完以后怎样做预测
 
 训练完成以后，不要先埋头看一堆指标。第一轮验收先看模型“画框是否靠谱”。
 
-### 9.1 用验证集做批量预测
+### 11.1 用验证集做批量预测
 
 ```bash
 cd cv-service
 source .venv/bin/activate
 yolo detect predict \
-  model="runs/detect/train/weights/best.pt" \
+  model="run/train/weights/best.pt" \
   source="datasets/durian/images/val" \
   conf=0.35 \
-  project="runs/detect" \
+  project="runs" \
   name="predict"
 ```
 
@@ -362,19 +503,19 @@ yolo detect predict \
 - `model`：使用你刚训练出来的最佳权重
 - `source`：输入图片来源，这里用验证集
 - `conf=0.35`：置信度阈值，低于它的框会被过滤
-- `project` + `name`：结果输出到 `runs/detect/predict/`
+- `project` + `name`：结果输出到 `run/predict/`
 
 预测产物通常会出现在：
 
 ```text
-cv-service/runs/detect/predict/
+cv-service/run/predict/
 ```
 
 目录里会保存已经画好框的图片，例如：
 
 ```text
-cv-service/runs/detect/predict/033.jpg
-cv-service/runs/detect/predict/079.jpg
+cv-service/run/predict/033.jpg
+cv-service/run/predict/079.jpg
 ```
 
 这些图就是“可视化验收结果”。你要看的不是抽象指标，而是：
@@ -383,7 +524,7 @@ cv-service/runs/detect/predict/079.jpg
 2. 框的位置是否基本合理
 3. 是否把大量背景或其他物体误识别成榴莲
 
-### 9.2 用单张新图做预测
+### 11.2 用单张新图做预测
 
 如果你手上有一张没参与训练的新图，可以这样试：
 
@@ -391,16 +532,16 @@ cv-service/runs/detect/predict/079.jpg
 cd cv-service
 source .venv/bin/activate
 yolo detect predict \
-  model="runs/detect/train/weights/best.pt" \
+  model="run/train/weights/best.pt" \
   source="path/to/your-test-image.jpg" \
   conf=0.35 \
-  project="runs/detect" \
+  project="runs" \
   name="predict-single"
 ```
 
 这样更接近真实上线场景，也更容易发现模型是否只记住了训练集背景。
 
-## 10. 如何判断下一步该补数据还是调参数
+## 12. 如何判断下一步该补数据还是调参数
 
 如果你看到下面这些问题，优先补数据和修标注，不要急着折腾参数：
 
@@ -411,7 +552,7 @@ yolo detect predict \
 
 因为这类问题通常不是“学习率调错了”，而是训练数据没有覆盖真实场景。
 
-## 11. 怎样把模型接回当前微服务
+## 13. 怎样把模型接回当前微服务
 
 当前微服务默认从下面这个路径加载模型：
 
@@ -423,7 +564,7 @@ cv-service/models/durian-best.pt
 
 ```bash
 cd cv-service
-cp runs/detect/train/weights/best.pt models/durian-best.pt
+cp run/train/weights/best.pt models/durian-best.pt
 ```
 
 这一步的产物是：
@@ -442,7 +583,7 @@ uvicorn app.main:app --reload --port 8010
 
 服务启动后，会在启动阶段加载这个模型文件。
 
-## 12. 服务里的“predict”是什么样
+## 14. 服务里的“predict”是什么样
 
 命令行的 `yolo detect predict` 适合做训练后的可视化验收。
 
@@ -464,7 +605,7 @@ uvicorn app.main:app --reload --port 8010
 - CLI `predict` 看的是“模型视觉效果”
 - 微服务 `/detect` 提供的是“程序可消费的数据”
 
-## 13. 新人最稳的实际执行顺序
+## 15. 新人最稳的实际执行顺序
 
 如果你是第一次接手这个模块，按下面顺序做最稳：
 
@@ -473,12 +614,12 @@ uvicorn app.main:app --reload --port 8010
 3. 确认 `datasets/durian/` 目录结构正确
 4. 运行 `python3 scripts/split_yolo_dataset.py`
 5. 运行第一版训练命令
-6. 拿 `runs/detect/train/weights/best.pt` 跑 `predict`
-7. 人工看 `runs/detect/predict/` 里的结果图
+6. 拿 `run/train/weights/best.pt` 跑 `predict`
+7. 人工看 `run/predict/` 里的结果图
 8. 满意后复制到 `models/durian-best.pt`
 9. 启动微服务验证 `/detect`
 
-## 14. 最容易踩的坑
+## 16. 最容易踩的坑
 
 ### 14.1 只看训练效果，不看验证集或新图
 
@@ -503,7 +644,7 @@ uvicorn app.main:app --reload --port 8010
 
 在这之前，大量调参通常只是放大噪音。
 
-## 15. 一句话总结
+## 17. 一句话总结
 
 对当前仓库来说，最重要的主线只有这一条：
 
@@ -514,7 +655,7 @@ uvicorn app.main:app --reload --port 8010
 如果你只能记住一个“关键产物”，那就是：
 
 ```text
-cv-service/runs/detect/train/weights/best.pt
+cv-service/run/train/weights/best.pt
 ```
 
 它是训练阶段的最终模型产物，也是接回服务的输入。
