@@ -247,7 +247,7 @@ source .venv/bin/activate
 yolo detect train \
   data="datasets/durian/data.yaml" \
   model="yolov8n.pt" \
-  project="runs" \
+  project="runs/detect" \
   name="train" \
   epochs=50 \
   imgsz=640 \
@@ -265,6 +265,9 @@ yolo detect train \
 - `batch=4`：CPU 环境更稳妥的起步值
 - `device=cpu`：强制 CPU，避免新人一开始卡在 GPU 环境
 
+这里显式写 `project="runs/detect"`，是为了让输出目录稳定落在 `runs/detect/train/`。
+
+
 ### 7.2 如果你可以使用 GPU
 
 确认机器有可用 GPU 后，可以改成：
@@ -275,7 +278,7 @@ source .venv/bin/activate
 yolo detect train \
   data="datasets/durian/data.yaml" \
   model="yolov8n.pt" \
-  project="runs" \
+  project="runs/detect" \
   name="train" \
   epochs=80 \
   imgsz=640 \
@@ -350,7 +353,7 @@ yolo detect predict \
   model="runs/detect/train/weights/best.pt" \
   source="datasets/durian/images/val" \
   conf=0.35 \
-  project="runs" \
+  project="runs/detect" \
   name="predict"
 ```
 
@@ -391,7 +394,7 @@ yolo detect predict \
   model="runs/detect/train/weights/best.pt" \
   source="path/to/your-test-image.jpg" \
   conf=0.35 \
-  project="runs" \
+  project="runs/detect" \
   name="predict-single"
 ```
 
