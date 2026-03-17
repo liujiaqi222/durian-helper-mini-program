@@ -260,12 +260,12 @@ names:
 假设你已经进入虚拟环境，并且数据集已经准备好，可以用最简单的方式先跑起来：
 
 ```bash
-CV_DIR=cv-service
-source "$CV_DIR/.venv/bin/activate"
+cd cv-service
+source .venv/bin/activate
 yolo detect train \
-  data="$CV_DIR/datasets/durian/data.yaml" \
-  model="$CV_DIR/yolov8n.pt" \
-  project="$CV_DIR/runs" \
+  data="datasets/durian/data.yaml" \
+  model="yolov8n.pt" \
+  project="runs" \
   name=train \
   epochs=50 \
   imgsz=640
@@ -293,10 +293,11 @@ yolo detect train \
 第一版建议用这个：
 
 ```bash
+cd cv-service
 yolo detect train \
-  data="$CV_DIR/datasets/durian/data.yaml" \
-  model="$CV_DIR/yolov8n.pt" \
-  project="$CV_DIR/runs" \
+  data="datasets/durian/data.yaml" \
+  model="yolov8n.pt" \
+  project="runs" \
   name=train \
   epochs=80 \
   imgsz=640 \
@@ -477,21 +478,3 @@ YOLO 只负责找目标位置，不负责生成购买建议。
 
 这比一开始就想“直接做出很准的模型”更现实。
 
-## 20. 你当前最值得做的下一步
-
-如果你问“我明天就要开始干，第一步是什么”，答案是：
-
-1. 新建一个数据集目录
-2. 先收集 100 到 200 张真实榴莲场景图
-3. 用一个标注工具把每个榴莲都框出来
-4. 导出成 YOLO 格式
-5. 按本文命令跑第一版训练
-
-做到这里，你就已经不是“完全不会训练模型”了。
-
-## 21. 后续我还能继续帮你补什么
-
-如果你继续推进，下一步我最建议补的是这两项之一：
-
-1. 我帮你在仓库里直接补一个 `datasets/README.md` 模板，告诉你数据目录该怎么放
-2. 我帮你写一个“训练脚本 + 推理脚本”，这样你以后不用手敲长命令

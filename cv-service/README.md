@@ -8,13 +8,8 @@
 
 后续的“按从左到右、从上到下编号”“生成标注图”“调用大模型评分”，建议放在主后端或者单独的编排层处理。
 
-## 1. 这个微服务解决什么问题
+## 1. 这个微服务解决什么问题(cv-service 目录下)
 
-下面的命令示例会先约定一个目录别名，减少反复输入 `cv-service`：
-
-```bash
-CV_DIR=cv-service
-```
 
 对你这个项目来说，YOLO 微服务负责的是第一段：
 
@@ -112,8 +107,7 @@ cv-service/
 安装依赖：
 
 ```bash
-CV_DIR=cv-service
-cd "$CV_DIR"
+cd cv-service
 python3 --version  # 确认是 3.11+
 python3 -m venv .venv
 source .venv/bin/activate
@@ -124,8 +118,7 @@ pip install -r requirements.txt
 ## 6. 如何启动
 
 ```bash
-CV_DIR=cv-service
-cd "$CV_DIR"
+cd cv-service
 uvicorn app.main:app --reload --port 8010
 ```
 
