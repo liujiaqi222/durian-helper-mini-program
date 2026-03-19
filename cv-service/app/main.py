@@ -59,7 +59,12 @@ async def detect_and_annotate(
     image_url: str | None = Form(default=None),
 ) -> DetectionResponse:
     """Detect durians and return annotation artifacts in one call."""
-    return await detector.detect(upload=file, image_url=image_url, include_assets=True)
+    return await detector.detect(
+        upload=file,
+        image_url=image_url,
+        include_assets=True,
+        apply_annotation_filter=True,
+    )
 
 
 @app.get("/model-info", response_model=ModelInfoResponse)

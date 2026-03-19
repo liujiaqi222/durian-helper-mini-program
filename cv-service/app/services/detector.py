@@ -80,6 +80,7 @@ class DurianDetector:
         upload: UploadFile,
         *,
         include_assets: bool = False,
+        apply_annotation_filter: bool = False,
     ) -> DetectionResponse:
         """Run detection for an uploaded image file."""
         if self._model is None:
@@ -87,13 +88,18 @@ class DurianDetector:
 
         image_bytes = await upload.read()
         image = load_and_validate_image(image_bytes)
-        return self._predict_image(image, include_assets=include_assets)
+        return self._predict_image(
+            image,
+            include_assets=include_assets,
+            apply_annotation_filter=apply_annotation_filter,
+        )
 
     async def detect_url(
         self,
         image_url: str,
         *,
         include_assets: bool = False,
+        apply_annotation_filter: bool = False,
     ) -> DetectionResponse:
         """Run detection for a remotely hosted image."""
         try:
@@ -112,7 +118,11 @@ class DurianDetector:
             raise HTTPException(status_code=400, detail="Failed to download image_url.") from exc
 
         image = load_and_validate_image(response.content)
-        return self._predict_image(image, include_assets=include_assets)
+        return self._predict_image(
+            image,
+            include_assets=include_assets,
+            apply_annotation_filter=apply_annotation_filter,
+        )
 
     async def detect(
         self,
@@ -120,15 +130,24 @@ class DurianDetector:
         upload: UploadFile | None = None,
         image_url: str | None = None,
         include_assets: bool = False,
+        apply_annotation_filter: bool = False,
     ) -> DetectionResponse:
         """Accept either file upload or remote URL input."""
         if bool(upload) == bool(image_url):
             raise HTTPException(status_code=400, detail="Provide exactly one of file or image_url.")
 
         if upload is not None:
-            return await self.detect_upload(upload, include_assets=include_assets)
+            return await self.detect_upload(
+                upload,
+                include_assets=include_assets,
+                apply_annotation_filter=apply_annotation_filter,
+            )
 
-        return await self.detect_url(image_url or "", include_assets=include_assets)
+        return await self.detect_url(
+            image_url or "",
+            include_assets=include_assets,
+            apply_annotation_filter=apply_annotation_filter,
+        )
 
     def get_model_info(self) -> ModelInfoResponse:
         """Return public model metadata."""
@@ -141,11 +160,22 @@ class DurianDetector:
             min_image_width=MIN_IMAGE_WIDTH,
         )
 
-    def _predict_image(self, image: Image.Image, *, include_assets: bool) -> DetectionResponse:
+    def _predict_image(
+        self,
+        image: Image.Image,
+        *,
+        include_assets: bool,
+        apply_annotation_filter: bool = False,
+    ) -> DetectionResponse:
         """Run YOLO on a validated image and build the public response."""
         assert self._model is not None  # Guarded by public entrypoints.
         results = self._model.predict(image, conf=CONFIDENCE_THRESHOLD, verbose=False)
-        return self._build_response(results[0], image=image, include_assets=include_assets)
+        return self._build_response(
+            results[0],
+            image=image,
+            include_assets=include_assets,
+            apply_annotation_filter=apply_annotation_filter,
+        )
 
     def _build_response(
         self,
@@ -153,6 +183,7 @@ class DurianDetector:
         *,
         image: Image.Image | None = None,
         include_assets: bool = False,
+        apply_annotation_filter: bool = False,
     ) -> DetectionResponse:
         """Convert one Ultralytics result object into the public response schema."""
         raw_items: list[RawDetection] = []
@@ -177,10 +208,14 @@ class DurianDetector:
                 ),
             )
 
+        message: str | None = None
+        if apply_annotation_filter:
+            raw_items, message = self._filter_for_annotation(raw_items)
+
         items = self._assign_labels(raw_items)
         annotated_image_base64: str | None = None
 
-        if include_assets:
+        if include_assets and items:
             if image is None:
                 raise ValueError("image is required when include_assets is True.")
             items = self._attach_crop_images(image, items)
@@ -189,8 +224,36 @@ class DurianDetector:
         return DetectionResponse(
             count=len(items),
             items=items,
+            message=message,
             annotated_image_base64=annotated_image_base64,
         )
+
+    def _filter_for_annotation(
+        self,
+        items: list[RawDetection],
+    ) -> tuple[list[RawDetection], str | None]:
+        """Apply the business filter used by /detect-and-annotate."""
+        high_confidence_items = [item for item in items if item.confidence > 0.6]
+        if high_confidence_items:
+            return self._top_by_confidence(high_confidence_items, limit=9), None
+
+        fallback_items = [item for item in items if item.confidence > 0.4]
+        if fallback_items:
+            return self._top_by_confidence(fallback_items, limit=3), None
+
+        return [], "没有识别到榴莲"
+
+    def _top_by_confidence(
+        self,
+        items: list[RawDetection],
+        *,
+        limit: int,
+    ) -> list[RawDetection]:
+        """Pick the strongest detections while keeping tie-breakers deterministic."""
+        return sorted(
+            items,
+            key=lambda item: (-item.confidence, item.center_y, item.center_x),
+        )[:limit]
 
     def _assign_labels(self, items: list[RawDetection]) -> list[DetectionItem]:
         """Sort detections by rows and assign stable alphabetical labels."""

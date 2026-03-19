@@ -30,6 +30,10 @@ class DetectionResponse(BaseModel):
 
     count: int = Field(..., description="Number of detected durians.")
     items: list[DetectionItem] = Field(..., description="All accepted detection boxes.")
+    message: str | None = Field(
+        default=None,
+        description="Optional business message, such as when no durians are detected.",
+    )
     annotated_image_base64: str | None = Field(
         default=None,
         description="Base64-encoded annotated full image.",
