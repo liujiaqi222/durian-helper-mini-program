@@ -13,3 +13,7 @@ CONFIDENCE_THRESHOLD = 0.35
 # Only boxes of this class are returned. Keeping it explicit avoids leaking
 # unrelated classes if the loaded model was trained with multiple labels.
 TARGET_CLASS_NAME = "durian"
+
+ALLOWED_IMAGE_FORMATS = {"jpeg", "png", "webp"}
+MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024
+MIN_IMAGE_WIDTH = 720
