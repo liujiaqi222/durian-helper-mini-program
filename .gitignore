@@ -17,6 +17,7 @@ build
 .env.development.local
 .env.test.local
 .env.production.local
+.env.development
 
 # Local CVAT workspace and first-run compose artifacts are development-only.
 server/cv-service/.tools/
