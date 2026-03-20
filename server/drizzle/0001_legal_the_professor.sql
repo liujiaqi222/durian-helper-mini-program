@@ -1,0 +1,1 @@
+ALTER TABLE "analysis_tasks" ADD COLUMN "source_image_path" text;

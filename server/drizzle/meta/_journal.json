@@ -8,6 +8,13 @@
       "when": 1773931822956,
       "tag": "0000_fearless_frightful_four",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1774017784763,
+      "tag": "0001_legal_the_professor",
+      "breakpoints": true
     }
   ]
 }

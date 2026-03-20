@@ -37,9 +37,9 @@ describe('Durian analysis endpoints (e2e)', () => {
     }
   });
 
-  it('uploads an image and returns both a public url and local path', async () => {
+  it('creates an analysis task from a direct file upload', async () => {
     const response = await request(app.getHttpServer())
-      .post('/api/v1/uploads/images')
+      .post('/api/v1/durians/analyze')
       .attach('file', pngPixelBuffer, {
         contentType: 'image/png',
         filename: 'durian.png',
@@ -49,27 +49,6 @@ describe('Durian analysis endpoints (e2e)', () => {
     const body = response.body as {
       code: number;
       data: {
-        fileName: string;
-        fileUrl: string;
-        localPath: string;
-      };
-    };
-
-    expect(body.code).toBe(0);
-    expect(body.data.fileName).toMatch(/\.png$/);
-    expect(body.data.fileUrl).toContain('/uploads/');
-    expect(body.data.localPath).toContain('/uploads/');
-  });
-
-  it('creates an analysis task from a direct image url', async () => {
-    const response = await request(app.getHttpServer())
-      .post('/api/v1/durians/analyze')
-      .send({ imageUrl: 'https://example.com/durian.png' })
-      .expect(201);
-
-    const body = response.body as {
-      code: number;
-      data: {
         status: string;
         taskId: string;
       };
@@ -80,25 +59,11 @@ describe('Durian analysis endpoints (e2e)', () => {
     expect(body.data.taskId).toBeDefined();
   });
 
-  it('creates an analysis task from uploaded image metadata', async () => {
+  it('rejects analyze requests without a file', async () => {
     const response = await request(app.getHttpServer())
       .post('/api/v1/durians/analyze')
-      .send({
-        imagePath: '/tmp/uploads/durian.png',
-        imageUrl: 'http://127.0.0.1:3000/uploads/durian.png',
-      })
-      .expect(201);
+      .expect(400);
 
-    const body = response.body as {
-      code: number;
-      data: {
-        status: string;
-        taskId: string;
-      };
-    };
-
-    expect(body.code).toBe(0);
-    expect(['SCORING', 'FAILED']).toContain(body.data.status);
-    expect(body.data.taskId).toBeDefined();
+    expect(response.body.message).toBe('file is required');
   });
 });

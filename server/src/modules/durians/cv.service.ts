@@ -2,6 +2,7 @@ import { readFile } from 'fs/promises';
 import { basename, extname } from 'path';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { LoggerService } from '../../core/logger/logger.service';
 import { UploadsService } from '../uploads/uploads.service';
 
 interface CvDetectionItem {
@@ -48,6 +49,7 @@ export class CvService {
   constructor(
     private readonly configService: ConfigService,
     private readonly uploadsService: UploadsService,
+    private readonly logger: LoggerService,
   ) {}
 
   async detectAndAnnotate(
@@ -112,16 +114,47 @@ export class CvService {
       formData.append('image_url', input.imageUrl);
     }
 
+    this.logger.log(
+      `Calling cv-service detect-and-annotate ${JSON.stringify({
+        endpoint,
+        hasImagePath: Boolean(input.imagePath),
+        imagePath: input.imagePath ?? null,
+        imageUrl: input.imageUrl,
+        taskId: input.taskId,
+      })}`,
+      'CvService',
+    );
+
     const response = await fetch(endpoint, {
       body: formData,
       method: 'POST',
     });
 
     if (!response.ok) {
+      this.logger.error(
+        `cv-service detect-and-annotate failed ${JSON.stringify({
+          endpoint,
+          status: response.status,
+          taskId: input.taskId,
+        })}`,
+        undefined,
+        'CvService',
+      );
       throw new Error(`cv-service returned ${response.status}`);
     }
 
-    return (await response.json()) as CvDetectionResponse;
+    const payload = (await response.json()) as CvDetectionResponse;
+    this.logger.log(
+      `cv-service detect-and-annotate completed ${JSON.stringify({
+        annotatedImageReturned: Boolean(payload.annotated_image_base64),
+        count: payload.count,
+        itemLabels: payload.items.map((item) => item.label),
+        message: payload.message ?? null,
+        taskId: input.taskId,
+      })}`,
+      'CvService',
+    );
+    return payload;
   }
 
   private getMimeType(extension: string): string {

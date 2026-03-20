@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { LoggerService } from '../../core/logger/logger.service';
 import { AiService } from '../ai/ai.service';
 import { DURIAN_ANALYSIS_REPOSITORY } from './durians.constants';
 import { CvService } from './cv.service';
@@ -21,6 +22,7 @@ export class DuriansService {
     private readonly repository: DurianAnalysisRepository,
     private readonly aiService: AiService,
     private readonly cvService: CvService,
+    private readonly logger: LoggerService,
   ) {}
 
   async createAnalysisTask(input: {
@@ -31,11 +33,25 @@ export class DuriansService {
       sourceImagePath: input.imagePath,
       sourceImageUrl: input.imageUrl,
     });
+    this.logger.log(
+      `Starting durian analysis task ${JSON.stringify({
+        imagePath: input.imagePath ?? null,
+        imageUrl: input.imageUrl,
+        taskId: task.id,
+      })}`,
+      'DuriansService',
+    );
 
     await this.repository.updateTask(task.id, {
       sourceImagePath: input.imagePath ?? null,
       status: 'DETECTING',
     });
+    this.logger.log(
+      `Durian analysis task moved to DETECTING ${JSON.stringify({
+        taskId: task.id,
+      })}`,
+      'DuriansService',
+    );
 
     try {
       const detectionResult = await this.cvService.detectAndAnnotate({
@@ -43,9 +59,38 @@ export class DuriansService {
         imageUrl: input.imageUrl,
         taskId: task.id,
       });
+      this.logger.log(
+        `CV detection completed ${JSON.stringify({
+          annotatedImageUrl: detectionResult.annotatedImageUrl,
+          count: detectionResult.count,
+          itemLabels: detectionResult.items.map((item) => item.label),
+          taskId: task.id,
+        })}`,
+        'DuriansService',
+      );
       const aiSummary = await this.aiService
         .summarizeDurianContext(input.imageUrl)
-        .catch(() => null);
+        .catch((error) => {
+          this.logger.error(
+            `AI summary generation failed ${JSON.stringify({
+              imageUrl: input.imageUrl,
+              taskId: task.id,
+            })}`,
+            error instanceof Error ? error.stack : undefined,
+            'DuriansService',
+          );
+          return null;
+        });
+
+      if (aiSummary) {
+        this.logger.log(
+          `AI summary received ${JSON.stringify({
+            summary: aiSummary,
+            taskId: task.id,
+          })}`,
+          'DuriansService',
+        );
+      }
 
       return (
         (await this.repository.updateTask(task.id, {
@@ -56,6 +101,14 @@ export class DuriansService {
         })) ?? task
       );
     } catch (error) {
+      this.logger.error(
+        `Durian analysis task failed ${JSON.stringify({
+          imageUrl: input.imageUrl,
+          taskId: task.id,
+        })}`,
+        error instanceof Error ? error.stack : undefined,
+        'DuriansService',
+      );
       return (
         (await this.repository.updateTask(task.id, {
           errorMessage:
@@ -90,6 +143,10 @@ export class DuriansService {
     if (task.status !== 'FAILED') {
       throw new BadRequestException('Only failed tasks can be retried');
     }
+    this.logger.log(
+      `Retrying durian analysis task ${JSON.stringify({ taskId })}`,
+      'DuriansService',
+    );
 
     const nextTask = await this.repository.updateTask(task.id, {
       aiSummary: null,

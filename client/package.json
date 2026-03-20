@@ -13,6 +13,7 @@
     "prepare": "husky",
     "new": "taro new",
     "postinstall": "weapp-tw patch",
+    "test:unit": "vitest run",
     "build:weapp": "taro build --type weapp",
     "build:swan": "taro build --type swan",
     "build:alipay": "taro build --type alipay",
@@ -55,7 +56,8 @@
     "@tarojs/shared": "4.1.11",
     "@tarojs/taro": "4.1.11",
     "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react-dom": "^18.0.0",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@babel/core": "^7.24.4",
@@ -87,6 +89,7 @@
     "tailwindcss": "^4.2.2",
     "tsconfig-paths-webpack-plugin": "^4.1.0",
     "typescript": "^5.4.5",
+    "vitest": "^0.34.6",
     "weapp-tailwindcss": "^4.10.3",
     "webpack": "5.91.0"
   }

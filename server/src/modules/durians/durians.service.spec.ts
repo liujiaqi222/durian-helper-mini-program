@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { AiService } from '../ai/ai.service';
+import { LoggerService } from '../../core/logger/logger.service';
 import { CvService } from './cv.service';
 import { DuriansService } from './durians.service';
 import type {
@@ -69,6 +70,7 @@ describe('DuriansService', () => {
   let repository: InMemoryDurianAnalysisRepository;
   let service: DuriansService;
   let cvService: { detectAndAnnotate: jest.Mock };
+  let logger: { log: jest.Mock; warn: jest.Mock; error: jest.Mock };
 
   beforeEach(() => {
     repository = new InMemoryDurianAnalysisRepository();
@@ -87,9 +89,14 @@ describe('DuriansService', () => {
         ],
       }),
     };
+    logger = {
+      log: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    };
     service = new DuriansService(repository, {
       summarizeDurianContext: jest.fn().mockResolvedValue('summary'),
-    } as unknown as AiService, cvService as unknown as CvService);
+    } as unknown as AiService, cvService as unknown as CvService, logger as unknown as LoggerService);
   });
 
   it('creates an analysis task and stores cv output for an image url', async () => {
@@ -121,6 +128,14 @@ describe('DuriansService', () => {
       imageUrl: 'https://example.com/durian.png',
       taskId: 'task_1',
     });
+    expect(logger.log).toHaveBeenCalledWith(
+      expect.stringContaining('Starting durian analysis task'),
+      'DuriansService',
+    );
+    expect(logger.log).toHaveBeenCalledWith(
+      expect.stringContaining('CV detection completed'),
+      'DuriansService',
+    );
   });
 
   it('persists the uploaded image path and prefers it for cv detection', async () => {
@@ -175,5 +190,10 @@ describe('DuriansService', () => {
 
     expect(task.status).toBe('FAILED');
     expect(task.errorMessage).toBe('cv down');
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.stringContaining('Durian analysis task failed'),
+      expect.any(String),
+      'DuriansService',
+    );
   });
 });
