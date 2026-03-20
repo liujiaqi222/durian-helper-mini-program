@@ -1,5 +1,8 @@
+import { mkdirSync } from 'fs';
+import { join } from 'path';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import express from 'express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { LoggerService } from './core/logger/logger.service';
@@ -13,6 +16,9 @@ async function bootstrap() {
   app.use(helmet());
   app.enableCors();
   app.setGlobalPrefix('api/v1');
+  const uploadsDir = join(process.cwd(), 'uploads');
+  mkdirSync(uploadsDir, { recursive: true });
+  app.use('/uploads', express.static(uploadsDir));
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

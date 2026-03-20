@@ -4,9 +4,10 @@ import { AppService } from './app.service';
 import { CoreModule } from './core/core.module';
 import { AiModule } from './modules/ai/ai.module';
 import { DuriansModule } from './modules/durians/durians.module';
+import { UploadsModule } from './modules/uploads/uploads.module';
 
 @Module({
-  imports: [CoreModule, AiModule, DuriansModule],
+  imports: [CoreModule, AiModule, UploadsModule, DuriansModule],
   controllers: [AppController],
   providers: [AppService],
 })

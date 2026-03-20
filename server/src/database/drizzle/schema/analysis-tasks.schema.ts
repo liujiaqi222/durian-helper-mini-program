@@ -19,6 +19,7 @@ export const analysisStatusEnum = pgEnum('analysis_status', [
 
 export const analysisTasks = pgTable('analysis_tasks', {
   id: uuid('id').defaultRandom().primaryKey(),
+  sourceImagePath: text('source_image_path'),
   sourceImageUrl: text('source_image_url').notNull(),
   annotatedImageUrl: text('annotated_image_url'),
   status: analysisStatusEnum('status').notNull().default('PENDING'),

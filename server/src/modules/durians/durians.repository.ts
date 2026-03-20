@@ -21,6 +21,7 @@ export class DrizzleDurianAnalysisRepository implements DurianAnalysisRepository
     const [task] = await this.db
       .insert(analysisTasks)
       .values({
+        sourceImagePath: input.sourceImagePath ?? null,
         sourceImageUrl: input.sourceImageUrl,
       })
       .returning();
@@ -72,6 +73,7 @@ export class DrizzleDurianAnalysisRepository implements DurianAnalysisRepository
         errorMessage: patch.errorMessage,
         rawResult: patch.rawResult,
         recommendedLabel: patch.recommendedLabel,
+        sourceImagePath: patch.sourceImagePath,
         status: patch.status,
         updatedAt: new Date(),
       })
@@ -90,6 +92,7 @@ export class DrizzleDurianAnalysisRepository implements DurianAnalysisRepository
       id: task.id,
       rawResult: (task.rawResult as Record<string, unknown> | null) ?? null,
       recommendedLabel: task.recommendedLabel,
+      sourceImagePath: task.sourceImagePath,
       sourceImageUrl: task.sourceImageUrl,
       status: task.status,
       updatedAt: task.updatedAt,

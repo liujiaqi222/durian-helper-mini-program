@@ -19,6 +19,7 @@ export interface AnalysisTaskItem {
 
 export interface AnalysisTask {
   id: string;
+  sourceImagePath: string | null;
   sourceImageUrl: string;
   annotatedImageUrl: string | null;
   status: AnalysisStatus;
@@ -35,6 +36,7 @@ export interface AnalysisTaskWithItems extends AnalysisTask {
 }
 
 export interface CreateAnalysisTaskInput {
+  sourceImagePath?: string | null;
   sourceImageUrl: string;
 }
 

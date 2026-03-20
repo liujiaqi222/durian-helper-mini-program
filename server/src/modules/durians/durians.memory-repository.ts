@@ -15,6 +15,7 @@ export class InMemoryDurianAnalysisRepository implements DurianAnalysisRepositor
     const now = new Date();
     const task: AnalysisTaskWithItems = {
       id: randomUUID(),
+      sourceImagePath: input.sourceImagePath ?? null,
       sourceImageUrl: input.sourceImageUrl,
       annotatedImageUrl: null,
       status: 'PENDING',
