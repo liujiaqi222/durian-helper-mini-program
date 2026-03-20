@@ -7,6 +7,16 @@ import path from 'node:path'
 
 // https://taro-docs.jd.com/docs/next/config#defineconfig-辅助函数
 export default defineConfig<'webpack5'>(async (merge, { command, mode }) => {
+  const tailwindWebpackPlugin = {
+    plugin: UnifiedWebpackPluginV5,
+    args: [{
+      rem2rpx: true,
+      cssEntries: [
+        path.resolve(__dirname, '../src/app.css'),
+      ],
+    }],
+  } as const
+
   const baseConfig: UserConfigExport<'webpack5'> = {
     projectName: 'client',
     date: '2026-3-19',
@@ -53,6 +63,11 @@ export default defineConfig<'webpack5'>(async (merge, { command, mode }) => {
       },
       webpackChain(chain) {
         chain.resolve.plugin('tsconfig-paths').use(TsconfigPathsPlugin)
+        chain.merge({
+          plugin: {
+            install: tailwindWebpackPlugin,
+          },
+        })
       }
     },
     h5: {
@@ -82,23 +97,11 @@ export default defineConfig<'webpack5'>(async (merge, { command, mode }) => {
       },
       webpackChain(chain) {
         chain.resolve.plugin('tsconfig-paths').use(TsconfigPathsPlugin)
-        // 复制这块区域到你的配置代码中 region start
-      chain.merge({
-        plugin: {
-          install: {
-            plugin: UnifiedWebpackPluginV5,
-            args: [{
-              // 这里可以传参数
-              rem2rpx: true,
-              cssEntries: [
-                // 你 @import "tailwindcss"; 那个文件绝对路径
-                path.resolve(__dirname, '../src/app.css'),
-              ],
-            }],
+        chain.merge({
+          plugin: {
+            install: tailwindWebpackPlugin,
           },
-        },
-      })
-      // region end
+        })
       }
     },
     rn: {
