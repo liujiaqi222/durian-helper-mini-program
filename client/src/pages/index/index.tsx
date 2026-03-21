@@ -102,19 +102,19 @@ export default function Index() {
             </View>
           )}
 
-          {localImagePath ? (
-            <View className='flex flex-col gap-3 mt-2'>
-              <Button
-                className={`w-full rounded-2xl bg-amber-500 text-base font-bold text-white shadow-md border-none after:border-none ${
-                  isSubmitting ? 'opacity-50 grayscale' : ''
-                }`}
-                disabled={isSubmitting}
-                loading={isSubmitting}
-                onClick={handleStartAnalysis}
-              >
-                {isSubmitting ? '分析中...' : '立即开始分析'}
-              </Button>
+          <View className='flex flex-col gap-3 mt-2'>
+            <Button
+              className={`w-full rounded-2xl bg-amber-500 text-base font-bold text-white shadow-md border-none after:border-none ${
+                !localImagePath || isSubmitting ? 'opacity-50 grayscale' : ''
+              }`}
+              disabled={!localImagePath || isSubmitting}
+              loading={isSubmitting}
+              onClick={handleStartAnalysis}
+            >
+              {isSubmitting ? '分析中...' : '立即开始鉴定'}
+            </Button>
 
+            {localImagePath ? (
               <View className='flex gap-3'>
                 <Button
                   className='flex-1 rounded-2xl bg-amber-50 text-sm font-medium text-amber-700 border-none after:border-none'
@@ -131,8 +131,8 @@ export default function Index() {
                   清空当前进度
                 </Button>
               </View>
-            </View>
-          ) : null}
+            ) : null}
+          </View>
         </View>
 
         {/* Error Message */}
