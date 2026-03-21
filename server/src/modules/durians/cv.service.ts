@@ -63,7 +63,7 @@ export class CvService {
             response.annotated_image_base64,
             `${input.taskId}-annotated`,
           )
-        ).fileUrl
+        ).filePath
       : null;
 
     const items = response.items.map((item) => ({

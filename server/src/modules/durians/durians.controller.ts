@@ -40,6 +40,7 @@ export class DuriansController {
     const storedImage = await this.uploadsService.storeUploadedFile(file);
     this.logger.log(
       `Uploaded image stored ${JSON.stringify({
+        filePath: storedImage.filePath,
         fileUrl: storedImage.fileUrl,
         localPath: storedImage.localPath,
       })}`,
@@ -47,7 +48,7 @@ export class DuriansController {
     );
     const task = await this.duriansService.createAnalysisTask({
       imagePath: storedImage.localPath,
-      imageUrl: storedImage.fileUrl,
+      imageUrl: storedImage.filePath,
     });
     this.logger.log(
       `Durian analyze request completed ${JSON.stringify({

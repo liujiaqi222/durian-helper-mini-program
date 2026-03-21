@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { LoggerService } from '../../core/logger/logger.service';
 import { AiService } from '../ai/ai.service';
+import { UploadsService } from '../uploads/uploads.service';
 import { DURIAN_ANALYSIS_REPOSITORY } from './durians.constants';
 import { CvService } from './cv.service';
 import type {
@@ -25,6 +26,7 @@ export class DuriansService {
     private readonly repository: DurianAnalysisRepository,
     private readonly aiService: AiService,
     private readonly cvService: CvService,
+    private readonly uploadsService: UploadsService,
     private readonly logger: LoggerService,
   ) {}
 
@@ -55,7 +57,7 @@ export class DuriansService {
     if (!task) {
       throw new NotFoundException(`Task ${taskId} not found`);
     }
-    return task;
+    return this.hydrateTaskUrls(task);
   }
 
   async getAnalysisResult(taskId: string): Promise<AnalysisTaskWithItems> {
@@ -66,7 +68,7 @@ export class DuriansService {
     if (task.status !== 'DONE') {
       throw new ConflictException('Analysis result is not ready yet');
     }
-    return task;
+    return this.hydrateTaskUrls(task);
   }
 
   async retryAnalysisTask(taskId: string): Promise<AnalysisTask> {
@@ -100,7 +102,7 @@ export class DuriansService {
     }
 
     this.scheduleTaskProcessing(task.id);
-    return nextTask;
+    return this.hydrateTaskUrls(nextTask);
   }
 
   private scheduleTaskProcessing(taskId: string): void {
@@ -119,7 +121,7 @@ export class DuriansService {
   private async processTask(taskId: string): Promise<void> {
     const task = await this.getAnalysisTask(taskId);
     const imagePath = task.sourceImagePath ?? undefined;
-    const imageUrl = task.sourceImageUrl;
+    const imageUrl = this.uploadsService.buildPublicUrl(task.sourceImageUrl)!;
 
     await this.repository.updateTask(task.id, {
       errorMessage: null,
@@ -239,6 +241,28 @@ export class DuriansService {
         label: item.label,
       })),
       message: detectionResult.message ?? null,
+    };
+  }
+
+  private hydrateTaskUrls<T extends AnalysisTask | AnalysisTaskWithItems>(
+    task: T,
+  ): T {
+    const rawResult = task.rawResult
+      ? {
+          ...task.rawResult,
+          annotatedImageUrl: this.uploadsService.buildPublicUrl(
+            typeof task.rawResult.annotatedImageUrl === 'string'
+              ? task.rawResult.annotatedImageUrl
+              : null,
+          ),
+        }
+      : null;
+
+    return {
+      ...task,
+      annotatedImageUrl: this.uploadsService.buildPublicUrl(task.annotatedImageUrl),
+      rawResult,
+      sourceImageUrl: this.uploadsService.buildPublicUrl(task.sourceImageUrl) ?? '',
     };
   }
 }

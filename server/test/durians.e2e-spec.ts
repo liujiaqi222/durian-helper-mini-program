@@ -29,7 +29,7 @@ describe('Durian analysis endpoints (e2e)', () => {
       .overrideProvider(CvService)
       .useValue({
         detectAndAnnotate: jest.fn().mockResolvedValue({
-          annotatedImageUrl: 'http://127.0.0.1:3000/uploads/task-annotated.jpg',
+          annotatedImageUrl: '/uploads/task-annotated.jpg',
           count: 2,
           items: [
             {
@@ -149,6 +149,9 @@ describe('Durian analysis endpoints (e2e)', () => {
 
     expect((resultResponse.body as { data: unknown }).data).toMatchObject({
       annotatedImageUrl: 'http://127.0.0.1:3000/uploads/task-annotated.jpg',
+      sourceImageUrl: expect.stringMatching(
+        /^http:\/\/127\.0\.0\.1:\d+\/uploads\/upload-/,
+      ),
       overallSummary: 'A 综合表现最好，B 次之。',
       recommendedLabel: 'A',
       items: [

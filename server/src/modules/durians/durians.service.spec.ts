@@ -3,6 +3,7 @@ import { AiService } from '../ai/ai.service';
 import { LoggerService } from '../../core/logger/logger.service';
 import { CvService } from './cv.service';
 import { DuriansService } from './durians.service';
+import { UploadsService } from '../uploads/uploads.service';
 import type {
   AnalysisTask,
   AnalysisTaskItem,
@@ -95,6 +96,7 @@ describe('DuriansService', () => {
   let cvService: { detectAndAnnotate: jest.Mock };
   let logger: { log: jest.Mock; warn: jest.Mock; error: jest.Mock };
   let aiService: { scoreDurians: jest.Mock };
+  let uploadsService: { buildPublicUrl: jest.Mock };
 
   beforeEach(() => {
     jest.useFakeTimers();
@@ -119,6 +121,17 @@ describe('DuriansService', () => {
       warn: jest.fn(),
       error: jest.fn(),
     };
+    uploadsService = {
+      buildPublicUrl: jest.fn((value: string | null | undefined) => {
+        if (!value) {
+          return null;
+        }
+        if (value.startsWith('http')) {
+          return value;
+        }
+        return `http://localhost:3000${value}`;
+      }),
+    };
     aiService = {
       scoreDurians: jest.fn().mockResolvedValue({
         overallSummary: 'A 综合表现最好。',
@@ -139,6 +152,7 @@ describe('DuriansService', () => {
       repository,
       aiService as unknown as AiService,
       cvService as unknown as CvService,
+      uploadsService as unknown as UploadsService,
       logger as unknown as LoggerService,
     );
   });
@@ -153,7 +167,7 @@ describe('DuriansService', () => {
 
   it('creates a task immediately and completes it asynchronously', async () => {
     const task = await service.createAnalysisTask({
-      imageUrl: 'https://example.com/durian.png',
+      imageUrl: '/uploads/durian.png',
     });
 
     expect(task.id).toBe('task_1');
@@ -166,6 +180,7 @@ describe('DuriansService', () => {
     expect(storedTask.annotatedImageUrl).toBe(
       'http://localhost:3000/uploads/annotated-task_1.jpg',
     );
+    expect(storedTask.sourceImageUrl).toBe('http://localhost:3000/uploads/durian.png');
     expect(storedTask.detectedCount).toBe(1);
     expect(storedTask.detectedLabels).toEqual(['A']);
     expect(storedTask.overallSummary).toBe('A 综合表现最好。');
@@ -185,13 +200,13 @@ describe('DuriansService', () => {
     });
     expect(cvService.detectAndAnnotate).toHaveBeenCalledWith({
       imagePath: undefined,
-      imageUrl: 'https://example.com/durian.png',
+      imageUrl: 'http://localhost:3000/uploads/durian.png',
       taskId: 'task_1',
     });
     expect(aiService.scoreDurians).toHaveBeenCalledWith([
       expect.objectContaining({
         cropImageBase64: 'ZmFrZS1jcm9w',
-        imageUrl: 'https://example.com/durian.png',
+        imageUrl: 'http://localhost:3000/uploads/durian.png',
         label: 'A',
       }),
     ]);
@@ -200,7 +215,7 @@ describe('DuriansService', () => {
   it('persists uploaded image path and saves final scored items', async () => {
     const task = await service.createAnalysisTask({
       imagePath: '/tmp/uploads/task_1.jpg',
-      imageUrl: 'http://localhost:3000/uploads/task_1.jpg',
+      imageUrl: '/uploads/task_1.jpg',
     });
 
     await flushBackgroundTask();
@@ -228,7 +243,7 @@ describe('DuriansService', () => {
 
   it('rejects result lookup when the task is not completed', async () => {
     const task = await service.createAnalysisTask({
-      imageUrl: 'https://example.com/durian.png',
+      imageUrl: '/uploads/durian.png',
     });
 
     await expect(service.getAnalysisResult(task.id)).rejects.toBeInstanceOf(
@@ -238,7 +253,7 @@ describe('DuriansService', () => {
 
   it('retries only failed tasks', async () => {
     const task = await service.createAnalysisTask({
-      imageUrl: 'https://example.com/durian.png',
+      imageUrl: '/uploads/durian.png',
     });
 
     await expect(service.retryAnalysisTask(task.id)).rejects.toBeInstanceOf(
@@ -259,7 +274,7 @@ describe('DuriansService', () => {
     cvService.detectAndAnnotate.mockRejectedValueOnce(new Error('cv down'));
 
     const task = await service.createAnalysisTask({
-      imageUrl: 'https://example.com/durian.png',
+      imageUrl: '/uploads/durian.png',
     });
 
     await flushBackgroundTask();
@@ -278,7 +293,7 @@ describe('DuriansService', () => {
     aiService.scoreDurians.mockRejectedValueOnce(new Error('invalid ai json'));
 
     const task = await service.createAnalysisTask({
-      imageUrl: 'https://example.com/durian.png',
+      imageUrl: '/uploads/durian.png',
     });
 
     await flushBackgroundTask();

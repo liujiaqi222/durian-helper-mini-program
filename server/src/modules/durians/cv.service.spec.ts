@@ -34,6 +34,7 @@ describe('CvService', () => {
       storeBase64Image: jest
         .fn()
         .mockResolvedValueOnce({
+          filePath: '/uploads/task_1-annotated.jpg',
           fileUrl: 'http://127.0.0.1:3000/uploads/task_1-annotated.jpg',
         }),
     } as unknown as UploadsService;
@@ -55,7 +56,7 @@ describe('CvService', () => {
     });
 
     expect(result.annotatedImageUrl).toBe(
-      'http://127.0.0.1:3000/uploads/task_1-annotated.jpg',
+      '/uploads/task_1-annotated.jpg',
     );
     expect(result.items).toEqual([
       {

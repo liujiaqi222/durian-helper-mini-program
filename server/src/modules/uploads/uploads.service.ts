@@ -28,6 +28,26 @@ export interface UploadedImageFile {
 export class UploadsService {
   constructor(private readonly configService: ConfigService) {}
 
+  buildFilePath(fileName: string): string {
+    return `/uploads/${fileName}`;
+  }
+
+  buildPublicUrl(filePath: string | null | undefined): string | null {
+    if (!filePath) {
+      return null;
+    }
+
+    if (/^https?:\/\//i.test(filePath)) {
+      return filePath;
+    }
+
+    const normalizedBaseUrl = (
+      this.configService.get<string>('publicBaseUrl') || ''
+    ).replace(/\/+$/, '');
+    const normalizedPath = filePath.startsWith('/') ? filePath : `/${filePath}`;
+    return `${normalizedBaseUrl}${normalizedPath}`;
+  }
+
   getUploadsDir(): string {
     return resolve(process.cwd(), UPLOAD_DIR_NAME);
   }
@@ -60,11 +80,13 @@ export class UploadsService {
     await mkdir(uploadsDir, { recursive: true });
 
     const localPath = join(uploadsDir, fileName);
+    const filePath = this.buildFilePath(fileName);
     await writeFile(localPath, buffer);
 
     return {
       fileName,
-      fileUrl: `${this.configService.get<string>('publicBaseUrl')}/uploads/${fileName}`,
+      filePath,
+      fileUrl: this.buildPublicUrl(filePath)!,
       localPath,
     };
   }
