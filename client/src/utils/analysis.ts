@@ -48,3 +48,39 @@ export function findRecommendedItem(result: AnalysisResult): AnalysisTaskItem | 
 export function sortItemsForDisplay(items: AnalysisTaskItem[]): AnalysisTaskItem[] {
   return [...items].sort(compareCandidatePriority)
 }
+
+interface ResultPreviewInput {
+  annotatedImageUrl: string | null
+  sourceImageUrl: string | null
+  localImagePath: string | null
+}
+
+interface ResultPreview {
+  title: '编号标注图' | '原图'
+  imageUrl: string
+}
+
+export function resolveResultPreview(input: ResultPreviewInput): ResultPreview | null {
+  if (input.annotatedImageUrl) {
+    return {
+      title: '编号标注图',
+      imageUrl: input.annotatedImageUrl,
+    }
+  }
+
+  if (input.sourceImageUrl) {
+    return {
+      title: '原图',
+      imageUrl: input.sourceImageUrl,
+    }
+  }
+
+  if (input.localImagePath) {
+    return {
+      title: '原图',
+      imageUrl: input.localImagePath,
+    }
+  }
+
+  return null
+}

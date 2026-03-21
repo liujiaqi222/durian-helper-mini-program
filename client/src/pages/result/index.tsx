@@ -3,7 +3,13 @@ import Taro from '@tarojs/taro'
 import { useEffect, useRef, useState } from 'react'
 import { getAnalysisResult, getAnalysisTask, retryAnalysisTask } from '../../services/api'
 import { useAnalysisStore } from '../../store/analysis'
-import { findRecommendedItem, getStatusDescription, isTerminalTaskStatus, sortItemsForDisplay } from '../../utils/analysis'
+import {
+  findRecommendedItem,
+  getStatusDescription,
+  isTerminalTaskStatus,
+  resolveResultPreview,
+  sortItemsForDisplay,
+} from '../../utils/analysis'
 
 const POLL_INTERVAL = 1500
 const MAX_POLL_ATTEMPTS = 40
@@ -141,102 +147,114 @@ export default function ResultPage() {
     })
   }
 
-  const statusText = taskStatus ? getStatusDescription(taskStatus) : '正在准备结果页'
+  const statusText = taskStatus ? getStatusDescription(taskStatus) : '正在准备结果页配置...'
   const annotatedImageUrl = result?.annotatedImageUrl || taskDetail?.annotatedImageUrl || null
-  const previewImage = annotatedImageUrl || result?.sourceImageUrl || localImagePath
+  const preview = resolveResultPreview({
+    annotatedImageUrl,
+    sourceImageUrl: result?.sourceImageUrl || taskDetail?.sourceImageUrl || null,
+    localImagePath,
+  })
   const detectingLabels = result?.items.map((item) => item.label) || taskDetail?.detectedLabels || []
 
   return (
-    <View className='min-h-screen bg-gradient-to-b from-[#f8f1e6] to-[#efe4d1] px-6 py-6 text-[#2e2017]'>
+    <View className='min-h-screen bg-gradient-to-br from-yellow-50 via-white to-amber-50 px-4 py-6 text-gray-800 pb-12'>
       <View className='flex flex-col gap-5'>
-        <View className='flex flex-col gap-3 rounded-[22px] bg-[#fffbf4]/90 p-5 shadow-[0_14px_35px_rgba(92,63,36,0.08)]'>
-          <Text className='text-[12px] font-bold uppercase tracking-[2px] text-[#a67b4f]'>Analysis Status</Text>
-          <Text className='text-[22px] font-bold leading-[1.4] text-[#2e2017]'>榴莲识别与评分结果</Text>
-          <Text className='text-[14px] leading-[1.7] text-[#4d3d31]'>{statusText}</Text>
+        {/* Header Title */}
+        <View className='flex flex-col gap-1 rounded-3xl bg-white p-6 shadow-sm border border-yellow-100'>
+          <Text className='text-xs font-bold uppercase tracking-widest text-amber-500'>Analysis Result</Text>
+          <Text className='text-2xl font-extrabold leading-tight text-gray-900'>识别与评分结果</Text>
+          <Text className='text-sm leading-relaxed text-gray-500 mt-1'>{statusText}</Text>
         </View>
 
-        {previewImage ? (
-          <View className='flex flex-col gap-3 rounded-[22px] bg-[#fffbf4]/90 p-5 shadow-[0_14px_35px_rgba(92,63,36,0.08)]'>
-            <Text className='text-[22px] font-bold leading-[1.4] text-[#2e2017]'>
-              {annotatedImageUrl ? '编号标注图' : '原图'}
-            </Text>
-            <Image className='w-full overflow-hidden rounded-[18px]' mode='widthFix' src={previewImage} />
-          </View>
-        ) : null}
-
-        {annotatedImageUrl && localImagePath ? (
-          <View className='flex flex-col gap-3 rounded-[22px] bg-[#fffbf4]/90 p-5 shadow-[0_14px_35px_rgba(92,63,36,0.08)]'>
-            <Text className='text-[22px] font-bold leading-[1.4] text-[#2e2017]'>原图</Text>
-            <Image className='w-full overflow-hidden rounded-[18px]' mode='widthFix' src={localImagePath} />
+        {preview ? (
+          <View className='flex flex-col gap-3 rounded-3xl bg-white p-4 shadow-sm border border-yellow-100'>
+            <Text className='px-2 text-lg font-bold text-gray-900'>{preview.title}</Text>
+            <Image className='w-full overflow-hidden rounded-2xl bg-gray-50 ring-1 ring-gray-100' mode='widthFix' src={preview.imageUrl} />
           </View>
         ) : null}
 
         {taskStatus && !isTerminalTaskStatus(taskStatus) ? (
-          <View className='flex flex-col gap-3 rounded-[22px] bg-[#fffbf4]/90 p-5 shadow-[0_14px_35px_rgba(92,63,36,0.08)]'>
-            <Text className='text-[22px] font-bold leading-[1.4] text-[#2e2017]'>分析进行中</Text>
-            <Text className='text-[14px] leading-[1.7] text-[#4d3d31]'>请稍等，结果页会自动刷新当前任务状态。</Text>
+          <View className='flex flex-col gap-3 rounded-3xl bg-amber-50/50 p-6 shadow-sm border border-amber-200'>
+            <View className='flex items-center gap-2'>
+              <View className='h-3 w-3 rounded-full bg-amber-400 animate-pulse' />
+              <Text className='text-lg font-bold text-amber-900'>分析进行中</Text>
+            </View>
+            <Text className='text-sm leading-relaxed text-amber-700/80'>请稍候，我们正在为您仔细检查每一个榴莲。</Text>
             {taskDetail?.detectedCount ? (
-              <Text className='text-[14px] leading-[1.7] text-[#6d4c2f]'>
-                已识别 {taskDetail.detectedCount} 个榴莲：{detectingLabels.join('、')}
-              </Text>
+              <View className='mt-2 rounded-xl bg-white/60 p-3'>
+                <Text className='text-sm font-medium text-amber-800'>
+                  当前进展：已识别 {taskDetail.detectedCount} 个榴莲 ({detectingLabels.join('、')})
+                </Text>
+              </View>
             ) : null}
             {taskStatus === 'SCORING' && annotatedImageUrl ? (
-              <Text className='text-[14px] leading-[1.7] text-[#6d4c2f]'>
-                已完成榴莲编号，正在为 {detectingLabels.join('、') || '当前榴莲'} 生成评分。
-              </Text>
+              <View className='mt-1 rounded-xl bg-white/60 p-3'>
+                <Text className='text-sm font-medium text-amber-800'>
+                  当前进展：已完成编号，正在为 {detectingLabels.join('、') || '当前目标'} 综合打分...
+                </Text>
+              </View>
             ) : null}
           </View>
         ) : null}
 
         {recommendedItem ? (
-          <View className='flex flex-col items-center gap-3 rounded-[22px] bg-[#fffbf4]/90 p-5 text-center shadow-[0_14px_35px_rgba(92,63,36,0.08)]'>
-            <Text className='text-[22px] font-bold leading-[1.4] text-[#2e2017]'>推荐榴莲</Text>
-            <Text className='text-[64px] font-bold leading-none text-[#7b4b22]'>{recommendedItem.label}</Text>
-            <Text className='mt-2 text-[18px] font-semibold text-[#2e2017]'>
-              {recommendedItem.score !== null ? `${recommendedItem.score} 分` : '暂无分数'}
-            </Text>
-            <Text className='mt-3 text-[14px] leading-[1.6] text-[#4d3d31]'>
-              {recommendedItem.summary || result?.overallSummary || '后端暂未返回推荐摘要'}
+          <View className='flex flex-col items-center gap-2 rounded-3xl bg-gradient-to-b from-amber-100 to-amber-50 p-8 text-center shadow-md border border-amber-200'>
+            <Text className='text-sm font-bold tracking-wide text-amber-700'>🌟 最佳推荐</Text>
+            <Text className='text-6xl font-black text-amber-600 drop-shadow-sm my-2'>{recommendedItem.label}</Text>
+            <View className='rounded-full bg-white/80 px-4 py-1 shadow-sm'>
+              <Text className='text-lg font-bold text-amber-950'>
+                {recommendedItem.score !== null ? `${recommendedItem.score} 综合评分` : '暂无确切分数'}
+              </Text>
+            </View>
+            <Text className='mt-3 text-sm leading-relaxed text-amber-800 font-medium'>
+              {recommendedItem.summary || result?.overallSummary || '后端暂未返回总体评价'}
             </Text>
           </View>
         ) : null}
 
-        {result?.overallSummary ? (
-          <View className='flex flex-col gap-3 rounded-[22px] bg-[#fffbf4]/90 p-5 shadow-[0_14px_35px_rgba(92,63,36,0.08)]'>
-            <Text className='text-[22px] font-bold leading-[1.4] text-[#2e2017]'>整体说明</Text>
-            <Text className='text-[14px] leading-[1.7] text-[#4d3d31]'>{result.overallSummary}</Text>
+        {result?.overallSummary && !recommendedItem ? (
+          <View className='flex flex-col gap-2 rounded-3xl bg-white p-6 shadow-sm border border-yellow-100'>
+            <Text className='text-lg font-bold text-gray-900'>整体建议</Text>
+            <Text className='text-sm leading-relaxed text-gray-600'>{result.overallSummary}</Text>
           </View>
         ) : null}
 
         {displayItems.length > 0 ? (
-          <View className='flex flex-col gap-3 rounded-[22px] bg-[#fffbf4]/90 p-5 shadow-[0_14px_35px_rgba(92,63,36,0.08)]'>
-            <Text className='text-[22px] font-bold leading-[1.4] text-[#2e2017]'>全部评分列表</Text>
+          <View className='flex flex-col gap-4 mt-2'>
+            <Text className='px-2 text-lg font-bold text-gray-900'>所有榴莲明细</Text>
             <View className='flex flex-col gap-4'>
               {displayItems.map((item) => (
-                <View className='flex flex-col gap-[10px] rounded-[18px] bg-[#fffdf8] p-[18px]' key={item.label}>
-                  <View className='flex items-center justify-between'>
-                    <Text className='text-[22px] font-bold text-[#2e2017]'>{item.label}</Text>
-                    <Text className='text-[14px] font-semibold text-[#7b4b22]'>
-                      {item.score !== null ? `${item.score} 分` : '暂无分数'}
+                <View className='flex flex-col gap-3 rounded-3xl bg-white p-5 shadow-sm border border-yellow-100/50' key={item.label}>
+                  <View className='flex items-center justify-between border-b border-gray-100 pb-3'>
+                    <View className='flex items-center gap-2'>
+                      <Text className='text-xl font-extrabold text-gray-900'>{item.label}</Text>
+                      {item.buyPriority === 1 ? (
+                        <Text className='rounded-md bg-green-100 px-2 py-0.5 text-xs font-bold text-green-700'>首选推荐</Text>
+                      ) : item.buyPriority !== null ? (
+                        <Text className='rounded-md bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-900'>顺位 {item.buyPriority}</Text>
+                      ) : null}
+                    </View>
+                    <Text className='text-lg font-black text-amber-500'>
+                      {item.score !== null ? `${item.score}分` : '--'}
                     </Text>
                   </View>
 
-                  {item.summary ? <Text className='text-[14px] leading-[1.7] text-[#4d3d31]'>{item.summary}</Text> : null}
-                  <Text className='text-[13px] leading-[1.7] text-[#87674c]'>
-                    检测置信度：{Math.round(item.confidence * 100)}%，位置：({item.bbox.x1}, {item.bbox.y1}) - ({item.bbox.x2}, {item.bbox.y2})
-                  </Text>
-                  {item.buyPriority !== null ? (
-                    <Text className='text-[14px] leading-[1.7] text-[#87674c]'>购买优先级：{item.buyPriority}</Text>
-                  ) : null}
+                  {item.summary ? <Text className='text-sm leading-relaxed text-gray-600'>{item.summary}</Text> : null}
+                  
+                  <View className='flex items-center gap-2 text-xs text-gray-400'>
+                    <Text>置信区间：{Math.round(item.confidence * 100)}%</Text>
+                    <Text className='scale-75 text-gray-300'>|</Text>
+                    <Text>坐标：({item.bbox.x1}, {item.bbox.y1})</Text>
+                  </View>
 
                   {item.reasons?.length ? (
-                    <View className='flex flex-wrap gap-2'>
+                    <View className='flex flex-wrap gap-2 mt-1'>
                       {item.reasons.map((reason) => (
                         <Text
-                          className='rounded-full bg-[#f0e3ca] px-[10px] py-[6px] text-[12px] leading-[1.4] text-[#5a422f]'
+                          className='rounded-xl bg-amber-50/80 px-3 py-1 text-xs font-medium text-amber-700 border border-amber-100'
                           key={`${item.label}-reason-${reason}`}
                         >
-                          {reason}
+                          👍 {reason}
                         </Text>
                       ))}
                     </View>
@@ -246,10 +264,10 @@ export default function ResultPage() {
                     <View className='flex flex-wrap gap-2'>
                       {item.risks.map((risk) => (
                         <Text
-                          className='rounded-full bg-[#f7d7cf] px-[10px] py-[6px] text-[12px] leading-[1.4] text-[#7f2d1f]'
+                          className='rounded-xl bg-red-50/80 px-3 py-1 text-xs font-medium text-red-600 border border-red-100'
                           key={`${item.label}-risk-${risk}`}
                         >
-                          {risk}
+                          ⚠️ {risk}
                         </Text>
                       ))}
                     </View>
@@ -261,28 +279,28 @@ export default function ResultPage() {
         ) : null}
 
         {errorMessage ? (
-          <View className='flex flex-col gap-3 rounded-[22px] bg-[#fff1ee] p-5 shadow-[0_14px_35px_rgba(92,63,36,0.08)]'>
-            <Text className='text-[22px] font-bold leading-[1.4] text-[#2e2017]'>任务异常</Text>
-            <Text className='text-[14px] leading-[1.7] text-[#4d3d31]'>{errorMessage}</Text>
+          <View className='flex flex-col gap-2 rounded-2xl bg-red-50 p-5 border border-red-100 mt-2'>
+            <Text className='text-base font-bold text-red-600'>任务异常停止</Text>
+            <Text className='text-sm leading-relaxed text-red-500'>{errorMessage}</Text>
           </View>
         ) : null}
 
-        <View className='flex flex-col gap-3'>
+        <View className='flex flex-col gap-3 mt-4'>
           {taskStatus === 'FAILED' ? (
             <Button
-              className='w-full rounded-full bg-gradient-to-r from-[#8c5f32] to-[#b77a3d] text-[16px] font-semibold text-white'
+              className='w-full rounded-2xl bg-amber-500 text-base font-bold text-white shadow-md border-none after:border-none'
               loading={isRetrying}
               onClick={handleRetry}
             >
-              重试任务
+              重试分析任务
             </Button>
           ) : null}
 
           <Button
-            className='w-full rounded-full bg-[#f6ead7] text-[16px] font-semibold text-[#6d4c2f]'
+            className='w-full rounded-2xl bg-white text-base font-bold text-amber-700 border border-amber-200 shadow-sm after:border-none'
             onClick={handleRestart}
           >
-            重新选择图片
+            返回首页，重新鉴定
           </Button>
         </View>
       </View>

@@ -4,6 +4,7 @@ import {
   findRecommendedItem,
   getStatusDescription,
   isTerminalTaskStatus,
+  resolveResultPreview,
 } from './analysis'
 
 function createItem(overrides: Partial<AnalysisTaskItem>): AnalysisTaskItem {
@@ -64,5 +65,42 @@ describe('analysis utils', () => {
     expect(isTerminalTaskStatus('DONE')).toBe(true)
     expect(isTerminalTaskStatus('FAILED')).toBe(true)
     expect(isTerminalTaskStatus('SCORING')).toBe(false)
+  })
+
+  it('uses annotated image as the only preview when available', () => {
+    expect(
+      resolveResultPreview({
+        annotatedImageUrl: 'https://example.com/annotated.jpg',
+        sourceImageUrl: 'https://example.com/source.jpg',
+        localImagePath: '/tmp/local-source.jpg',
+      }),
+    ).toEqual({
+      title: '编号标注图',
+      imageUrl: 'https://example.com/annotated.jpg',
+    })
+  })
+
+  it('falls back to source image and then local image when no annotated image exists', () => {
+    expect(
+      resolveResultPreview({
+        annotatedImageUrl: null,
+        sourceImageUrl: 'https://example.com/source.jpg',
+        localImagePath: '/tmp/local-source.jpg',
+      }),
+    ).toEqual({
+      title: '原图',
+      imageUrl: 'https://example.com/source.jpg',
+    })
+
+    expect(
+      resolveResultPreview({
+        annotatedImageUrl: null,
+        sourceImageUrl: null,
+        localImagePath: '/tmp/local-source.jpg',
+      }),
+    ).toEqual({
+      title: '原图',
+      imageUrl: '/tmp/local-source.jpg',
+    })
   })
 })

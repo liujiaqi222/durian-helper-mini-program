@@ -73,67 +73,73 @@ export default function Index() {
   }
 
   return (
-    <View className='min-h-screen bg-gradient-to-b from-[#f8f1e6] to-[#efe4d1] px-6 py-6 text-[#2e2017]'>
-      <View className='flex flex-col gap-6'>
-        <View className='flex flex-col gap-3 rounded-[22px] bg-[#fffbf4]/90 p-5 shadow-[0_14px_35px_rgba(92,63,36,0.08)]'>
-          <Text className='text-[12px] font-bold uppercase tracking-[2px] text-[#a67b4f]'>Durian Picker MVP</Text>
-          <Text className='text-[22px] font-bold leading-[1.4] text-[#2e2017]'>上传货架照片，找出更值得买的榴莲</Text>
-          <Text className='text-[14px] leading-[1.7] text-[#4d3d31]'>
-          小程序会把图片发送到后端，完成目标检测、编号和评分建议，再返回推荐结果。
+    <View className='min-h-screen bg-gradient-to-br from-yellow-50 via-white to-amber-50 px-4 py-6'>
+      <View className='flex flex-col gap-5'>
+        {/* Welcome Section */}
+        <View className='flex flex-col gap-2 rounded-3xl bg-white p-6 shadow-sm border border-yellow-100'>
+          <Text className='text-xs font-bold uppercase tracking-widest text-amber-500'>Durian Picker</Text>
+          <Text className='text-2xl font-extrabold leading-tight text-gray-900'>智能挑选最棒的榴莲</Text>
+          <Text className='mb-1 text-sm leading-relaxed text-gray-500'>
+            上传货架照片，不仅能帮你进行目标检测和编号，还能为您提供详细的评分建议，买榴莲不再踩坑。
           </Text>
         </View>
 
-        <View className='flex flex-col gap-3 rounded-[22px] bg-[#fffbf4]/90 p-5 shadow-[0_14px_35px_rgba(92,63,36,0.08)]'>
-          <Text className='text-[22px] font-bold leading-[1.4] text-[#2e2017]'>1. 选择图片</Text>
-          <Text className='text-[14px] leading-[1.7] text-[#4d3d31]'>支持拍照或从相册中选择一张榴莲货架图。</Text>
-
-          <Button
-            className='w-full rounded-full bg-gradient-to-r from-[#8c5f32] to-[#b77a3d] text-[16px] font-semibold text-white'
-            onClick={handleChooseImage}
-          >
-            {localImagePath ? '重新选择图片' : '选择图片'}
-          </Button>
+        {/* Action Section */}
+        <View className='flex flex-col gap-4 rounded-3xl bg-white p-6 shadow-sm border border-yellow-100'>
+          <Text className='text-lg font-bold text-gray-900'>开始鉴定</Text>
 
           {localImagePath ? (
-            <View className='w-full overflow-hidden rounded-[18px] bg-[#f2e8d8]'>
-              <Image className='h-[240px] w-full' mode='aspectFill' src={localImagePath} />
+            <View className='w-full overflow-hidden rounded-2xl bg-gray-50 ring-1 ring-gray-100'>
+              <Image className='h-64 w-full' mode='aspectFill' src={localImagePath} />
             </View>
           ) : (
-            <View className='flex min-h-[240px] w-full items-center justify-center rounded-[18px] border-2 border-dashed border-[#d2b893] bg-[#f2e8d8]'>
-              <Text className='text-[14px] text-[#8b6a4d]'>暂未选择图片</Text>
+            <View 
+              className='flex h-48 w-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-amber-300 bg-amber-50/50 active:bg-amber-100'
+              onClick={handleChooseImage}
+            >
+              <Text className='text-4xl'>📸</Text>
+              <Text className='text-sm font-medium text-amber-700'>点击选择或拍摄榴莲图片</Text>
             </View>
           )}
-        </View>
-
-        <View className='flex flex-col gap-3 rounded-[22px] bg-[#fffbf4]/90 p-5 shadow-[0_14px_35px_rgba(92,63,36,0.08)]'>
-          <Text className='text-[22px] font-bold leading-[1.4] text-[#2e2017]'>2. 发起分析</Text>
-          <Text className='text-[14px] leading-[1.7] text-[#4d3d31]'>
-            点击后会直接上传图片并开始分析，结果页负责轮询任务状态并展示推荐结果。
-          </Text>
-
-          <Button
-            className='w-full rounded-full bg-gradient-to-r from-[#8c5f32] to-[#b77a3d] text-[16px] font-semibold text-white disabled:opacity-50'
-            disabled={!localImagePath || isSubmitting}
-            loading={isSubmitting}
-            onClick={handleStartAnalysis}
-          >
-            {isSubmitting ? '正在上传并开始分析' : '开始分析'}
-          </Button>
 
           {localImagePath ? (
-            <Button
-              className='w-full rounded-full bg-[#f6ead7] text-[16px] font-semibold text-[#6d4c2f]'
-              onClick={handleReset}
-            >
-              清空当前图片
-            </Button>
+            <View className='flex flex-col gap-3 mt-2'>
+              <Button
+                className={`w-full rounded-2xl bg-amber-500 text-base font-bold text-white shadow-md border-none after:border-none ${
+                  isSubmitting ? 'opacity-50 grayscale' : ''
+                }`}
+                disabled={isSubmitting}
+                loading={isSubmitting}
+                onClick={handleStartAnalysis}
+              >
+                {isSubmitting ? '分析中...' : '立即开始分析'}
+              </Button>
+
+              <View className='flex gap-3'>
+                <Button
+                  className='flex-1 rounded-2xl bg-amber-50 text-sm font-medium text-amber-700 border-none after:border-none'
+                  onClick={handleChooseImage}
+                  disabled={isSubmitting}
+                >
+                  重新选择图片
+                </Button>
+                <Button
+                  className='flex-1 rounded-2xl bg-gray-50 text-sm font-medium text-gray-600 border-none after:border-none'
+                  onClick={handleReset}
+                  disabled={isSubmitting}
+                >
+                  清空当前进度
+                </Button>
+              </View>
+            </View>
           ) : null}
         </View>
 
+        {/* Error Message */}
         {errorMessage ? (
-          <View className='flex flex-col gap-3 rounded-[22px] bg-[#fff1ee] p-5 shadow-[0_14px_35px_rgba(92,63,36,0.08)]'>
-            <Text className='text-[22px] font-bold leading-[1.4] text-[#2e2017]'>操作失败</Text>
-            <Text className='text-[14px] leading-[1.7] text-[#4d3d31]'>{errorMessage}</Text>
+          <View className='flex flex-col gap-2 rounded-2xl bg-red-50 p-5 border border-red-100'>
+            <Text className='text-base font-bold text-red-600'>哎呀，出错了</Text>
+            <Text className='text-sm leading-relaxed text-red-500'>{errorMessage}</Text>
           </View>
         ) : null}
       </View>
