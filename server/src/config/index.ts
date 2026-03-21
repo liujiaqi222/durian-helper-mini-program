@@ -31,7 +31,7 @@ export default (): AppConfig => ({
     baseUrl:
       process.env.ARK_BASE_URL ||
       'https://ark.cn-beijing.volces.com/api/coding/v1',
-    model: process.env.ARK_MODEL || 'doubao-seed-2.0-pro',
+    model: process.env.ARK_MODEL || 'doubao-seed-2.0-lite',
     timeoutMs: process.env.ARK_TIMEOUT_MS,
   },
 });

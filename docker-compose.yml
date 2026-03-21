@@ -1,0 +1,97 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: durian-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-durian_helper}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-durian_helper}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: durian-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+  cv-service:
+    build:
+      context: ./cv-service
+    container_name: durian-cv-service
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8010/health')",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    ports:
+      - "8010:8010"
+
+  backend:
+    build:
+      context: ./server
+    container_name: durian-backend
+    depends_on:
+      cv-service:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      PUBLIC_BASE_URL: http://127.0.0.1:${BACKEND_PORT:-5000}
+      POSTGRES_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-durian_helper}
+      REDIS_URL: redis://redis:6379
+      CV_SERVICE_BASE_URL: http://cv-service:8010
+      ARK_API_KEY: ${ARK_API_KEY:-}
+      ARK_BASE_URL: ${ARK_BASE_URL:-https://ark.cn-beijing.volces.com/api/coding/v1}
+      ARK_MODEL: ${ARK_MODEL:-doubao-seed-2.0-lite}
+      ARK_TIMEOUT_MS: ${ARK_TIMEOUT_MS:-15000}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/v1/health').then((res)=>process.exit(res.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    ports:
+      - "${BACKEND_PORT:-5000}:3000"
+    volumes:
+      - ./server/uploads:/app/uploads
+
+volumes:
+  postgres-data:
+  redis-data:
