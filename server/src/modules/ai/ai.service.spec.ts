@@ -46,7 +46,7 @@ describe('AiService', () => {
         const defaults: Record<string, string | undefined> = {
           'ai.apiKey': 'test-key',
           'ai.baseUrl': 'https://example.com',
-          'ai.model': 'doubao-seed-2.0-pro',
+          'ai.model': 'doubao-seed-2.0-lite',
         };
 
         return { ...defaults, ...configOverrides }[key];

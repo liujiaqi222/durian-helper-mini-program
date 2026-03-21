@@ -67,7 +67,7 @@ export class AiService {
     }
 
     const modelId =
-      this.configService.get<string>('ai.model') || 'doubao-seed-2.0-pro';
+      this.configService.get<string>('ai.model') || 'doubao-seed-2.0-lite';
     const anthropic = createAnthropic({
       authToken: apiKey,
       baseURL: this.configService.get<string>('ai.baseUrl'),
