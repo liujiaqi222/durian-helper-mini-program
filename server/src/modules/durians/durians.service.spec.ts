@@ -71,6 +71,7 @@ describe('DuriansService', () => {
   let service: DuriansService;
   let cvService: { detectAndAnnotate: jest.Mock };
   let logger: { log: jest.Mock; warn: jest.Mock; error: jest.Mock };
+  let aiService: { summarizeDurianContext: jest.Mock };
 
   beforeEach(() => {
     repository = new InMemoryDurianAnalysisRepository();
@@ -94,9 +95,15 @@ describe('DuriansService', () => {
       warn: jest.fn(),
       error: jest.fn(),
     };
-    service = new DuriansService(repository, {
+    aiService = {
       summarizeDurianContext: jest.fn().mockResolvedValue('summary'),
-    } as unknown as AiService, cvService as unknown as CvService, logger as unknown as LoggerService);
+    };
+    service = new DuriansService(
+      repository,
+      aiService as unknown as AiService,
+      cvService as unknown as CvService,
+      logger as unknown as LoggerService,
+    );
   });
 
   it('creates an analysis task and stores cv output for an image url', async () => {
@@ -128,6 +135,10 @@ describe('DuriansService', () => {
       imageUrl: 'https://example.com/durian.png',
       taskId: 'task_1',
     });
+    expect(aiService.summarizeDurianContext).toHaveBeenCalledWith({
+      imagePath: undefined,
+      imageUrl: 'https://example.com/durian.png',
+    });
     expect(logger.log).toHaveBeenCalledWith(
       expect.stringContaining('Starting durian analysis task'),
       'DuriansService',
@@ -149,6 +160,10 @@ describe('DuriansService', () => {
       imagePath: '/tmp/uploads/task_1.jpg',
       imageUrl: 'http://localhost:3000/uploads/task_1.jpg',
       taskId: 'task_1',
+    });
+    expect(aiService.summarizeDurianContext).toHaveBeenCalledWith({
+      imagePath: '/tmp/uploads/task_1.jpg',
+      imageUrl: 'http://localhost:3000/uploads/task_1.jpg',
     });
   });
 

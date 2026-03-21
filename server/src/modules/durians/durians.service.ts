@@ -69,10 +69,14 @@ export class DuriansService {
         'DuriansService',
       );
       const aiSummary = await this.aiService
-        .summarizeDurianContext(input.imageUrl)
+        .summarizeDurianContext({
+          imagePath: input.imagePath,
+          imageUrl: input.imageUrl,
+        })
         .catch((error) => {
           this.logger.error(
             `AI summary generation failed ${JSON.stringify({
+              imagePath: input.imagePath ?? null,
               imageUrl: input.imageUrl,
               taskId: task.id,
             })}`,
@@ -112,7 +116,9 @@ export class DuriansService {
       return (
         (await this.repository.updateTask(task.id, {
           errorMessage:
-            error instanceof Error ? error.message : 'cv-service request failed',
+            error instanceof Error
+              ? error.message
+              : 'cv-service request failed',
           status: 'FAILED',
         })) ?? task
       );

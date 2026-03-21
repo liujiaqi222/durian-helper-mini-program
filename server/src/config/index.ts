@@ -29,7 +29,7 @@ export default (): AppConfig => ({
     apiKey: process.env.ARK_API_KEY,
     baseUrl:
       process.env.ARK_BASE_URL ||
-      'https://ark.cn-beijing.volces.com/api/coding',
+      'https://ark.cn-beijing.volces.com/api/coding/v1',
     model: process.env.ARK_MODEL || 'doubao-seed-2.0-pro',
   },
 });
