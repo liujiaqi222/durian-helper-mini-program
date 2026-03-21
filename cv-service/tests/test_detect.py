@@ -41,7 +41,7 @@ def test_detect_and_annotate_returns_assets(client, image_bytes):
     assert all(item["crop_image_base64"] for item in payload["items"])
 
 
-def test_detect_and_annotate_keeps_top_9_over_sixty_percent(client, image_bytes, monkeypatch):
+def test_detect_and_annotate_keeps_items_over_seventy_percent(client, image_bytes, monkeypatch):
     class HighConfidenceModel:
         def predict(self, image, conf: float, verbose: bool):
             boxes = [
@@ -59,19 +59,32 @@ def test_detect_and_annotate_keeps_top_9_over_sixty_percent(client, image_bytes,
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["count"] == 9
+    assert payload["count"] == 12
     assert payload.get("message") is None
-    assert [item["label"] for item in payload["items"]] == ["A", "B", "C", "D", "E", "F", "G", "H", "I"]
+    assert [item["label"] for item in payload["items"]] == [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G",
+        "H",
+        "I",
+        "J",
+        "K",
+        "L",
+    ]
 
 
-def test_detect_and_annotate_falls_back_to_top_3_over_forty_percent(client, image_bytes, monkeypatch):
+def test_detect_and_annotate_falls_back_to_items_over_sixty_percent(client, image_bytes, monkeypatch):
     class FallbackModel:
         def predict(self, image, conf: float, verbose: bool):
             boxes = [
-                DummyBox(0, 0.58, [260, 60, 360, 200]),
-                DummyBox(0, 0.55, [40, 40, 160, 180]),
-                DummyBox(0, 0.49, [420, 70, 520, 210]),
-                DummyBox(0, 0.45, [580, 80, 680, 220]),
+                DummyBox(0, 0.68, [260, 60, 360, 200]),
+                DummyBox(0, 0.65, [40, 40, 160, 180]),
+                DummyBox(0, 0.61, [420, 70, 520, 210]),
+                DummyBox(0, 0.59, [580, 80, 680, 220]),
             ]
             return [SimpleNamespace(boxes=boxes, names={0: "durian"})]
 
@@ -86,14 +99,14 @@ def test_detect_and_annotate_falls_back_to_top_3_over_forty_percent(client, imag
     payload = response.json()
     assert payload["count"] == 3
     assert payload.get("message") is None
-    assert [item["confidence"] for item in payload["items"]] == [0.55, 0.58, 0.49]
+    assert [item["confidence"] for item in payload["items"]] == [0.65, 0.68, 0.61]
 
 
 def test_detect_and_annotate_returns_message_when_nothing_matches(client, image_bytes, monkeypatch):
     class NoMatchModel:
         def predict(self, image, conf: float, verbose: bool):
             boxes = [
-                DummyBox(0, 0.40, [40, 40, 160, 180]),
+                DummyBox(0, 0.60, [40, 40, 160, 180]),
                 DummyBox(0, 0.32, [240, 40, 360, 180]),
             ]
             return [SimpleNamespace(boxes=boxes, names={0: "durian"})]

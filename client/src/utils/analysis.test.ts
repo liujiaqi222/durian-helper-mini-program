@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { AnalysisResult, AnalysisTaskItem } from '../types/analysis'
 import {
   findRecommendedItem,
+  getInProgressMessages,
   getStatusDescription,
   isTerminalTaskStatus,
   resolveResultPreview,
@@ -63,6 +64,28 @@ describe('analysis utils', () => {
     expect(isTerminalTaskStatus('DONE')).toBe(true)
     expect(isTerminalTaskStatus('FAILED')).toBe(true)
     expect(isTerminalTaskStatus('SCORING')).toBe(false)
+  })
+
+  it('shows only the latest scoring progress message', () => {
+    expect(
+      getInProgressMessages({
+        detectedCount: 8,
+        labels: ['A', 'B', 'C'],
+        status: 'SCORING',
+        hasPreview: true,
+      }),
+    ).toEqual(['当前进展：已完成编号，正在为 A、B、C 综合打分...'])
+  })
+
+  it('shows detected progress before scoring starts', () => {
+    expect(
+      getInProgressMessages({
+        detectedCount: 8,
+        labels: ['A', 'B', 'C'],
+        status: 'DETECTING',
+        hasPreview: true,
+      }),
+    ).toEqual(['当前进展：已识别 8 个榴莲 (A、B、C)'])
   })
 
   it('uses source image as the preferred preview', () => {

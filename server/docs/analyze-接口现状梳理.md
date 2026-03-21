@@ -78,8 +78,8 @@ Python 侧核心逻辑在 `cv-service/app/services/detector.py`，当前职责�
 2. 使用 YOLO 模型做目标检测。
 3. 只保留类别名等于 `durian` 的检测框。
 4. 对 `/detect-and-annotate` 结果应用业务过滤：
-   - 若存在 `confidence > 0.6` 的结果，只保留前 9 个。
-   - 否则若存在 `confidence > 0.4` 的结果，只保留前 3 个。
+   - 若存在 `confidence > 0.7` 的结果，则返回这些结果。
+   - 否则若存在 `confidence > 0.6` 的结果，则回退为返回这些结果。
    - 否则返回 `没有识别到榴莲`。
 5. 对检测框按“从上到下、从左到右”的视觉顺序排序，并给出稳定标签：
    - `A`
@@ -194,7 +194,7 @@ AI 的职责不是自由写评价，而是针对每个已编号榴莲输出结�
    - 当前 crop 图
    - 当前榴莲 label
    - 当前榴莲 bbox
-   - 当前榴莲 detection confidence
+   - 可见外观特征提示（让模型基于颜色、形状、刺和果柄状态判断）
 5. AI 输出严格 JSON。
 6. 后端校验 JSON，并写入 `analysis_task_items`。
 7. 后端根据所有 item 的评分汇总出 `recommendedLabel` 和 `overallSummary`。

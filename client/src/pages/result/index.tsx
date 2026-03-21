@@ -6,6 +6,7 @@ import { useAnalysisStore } from '../../store/analysis'
 import type { AnalysisTaskDetectionItem } from '../../types/analysis'
 import {
   findRecommendedItem,
+  getInProgressMessages,
   getStatusDescription,
   isTerminalTaskStatus,
   resolveResultPreview,
@@ -51,7 +52,7 @@ export default function ResultPage() {
 
   useEffect(() => {
     if (!taskId) {
-      void Taro.redirectTo({
+      void Taro.reLaunch({
         url: '/pages/index/index',
       })
       return
@@ -146,8 +147,11 @@ export default function ResultPage() {
   }
 
   async function handleRestart() {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+    }
     resetAnalysis()
-    await Taro.redirectTo({
+    await Taro.reLaunch({
       url: '/pages/index/index',
     })
   }
@@ -158,6 +162,14 @@ export default function ResultPage() {
     localImagePath,
   })
   const detectingLabels = result?.items.map((item) => item.label) || taskDetail?.detectedLabels || []
+  const inProgressMessages = taskStatus
+    ? getInProgressMessages({
+        detectedCount: taskDetail?.detectedCount || 0,
+        labels: detectingLabels,
+        status: taskStatus,
+        hasPreview: Boolean(preview),
+      })
+    : []
   const overlaySourceItems: AnalysisTaskDetectionItem[] = result?.items?.length
     ? result.items
     : taskDetail?.rawResult?.items || []
@@ -259,20 +271,11 @@ export default function ResultPage() {
               <Text className='text-lg font-bold text-amber-900'>分析进行中</Text>
             </View>
             <Text className='text-sm leading-relaxed text-amber-700/80'>请稍候，我们正在为您仔细检查每一个榴莲。</Text>
-            {taskDetail?.detectedCount ? (
-              <View className='mt-2 rounded-xl bg-white/60 p-3'>
-                <Text className='text-sm font-medium text-amber-800'>
-                  当前进展：已识别 {taskDetail.detectedCount} 个榴莲 ({detectingLabels.join('、')})
-                </Text>
+            {inProgressMessages.map((message, index) => (
+              <View key={message} className={index === 0 ? 'mt-2 rounded-xl bg-white/60 p-3' : 'mt-1 rounded-xl bg-white/60 p-3'}>
+                <Text className='text-sm font-medium text-amber-800'>{message}</Text>
               </View>
-            ) : null}
-            {taskStatus === 'SCORING' && preview ? (
-              <View className='mt-1 rounded-xl bg-white/60 p-3'>
-                <Text className='text-sm font-medium text-amber-800'>
-                  当前进展：已完成编号，正在为 {detectingLabels.join('、') || '当前目标'} 综合打分...
-                </Text>
-              </View>
-            ) : null}
+            ))}
           </View>
         ) : null}
 
@@ -327,12 +330,7 @@ export default function ResultPage() {
 
                   {item.summary ? <Text className='text-sm leading-relaxed text-gray-600'>{item.summary}</Text> : null}
                   
-                  <View className='flex items-center gap-2 text-xs text-gray-400'>
-                    <Text>置信区间：{Math.round(item.confidence * 100)}%</Text>
-                    <Text className='scale-75 text-gray-300'>|</Text>
-                    <Text>坐标：({item.bbox.x1}, {item.bbox.y1})</Text>
-                  </View>
-
+                  
                   {item.reasons?.length ? (
                     <View className='flex flex-wrap gap-2 mt-1'>
                       {item.reasons.map((reason) => (

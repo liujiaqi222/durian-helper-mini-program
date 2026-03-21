@@ -138,7 +138,7 @@ export class AiService {
         type: 'text',
         text: [
           `You are rating durian ${input.label} from a crop image.`,
-          `Detection confidence: ${input.confidence}.`,
+          'Judge it by visible traits such as color, shape, husk texture, and stem condition.',
           `Bounding box: (${input.bbox.x1}, ${input.bbox.y1}) to (${input.bbox.x2}, ${input.bbox.y2}).`,
           'Return strict JSON with fields: label, score, summary, reasons, risks.',
           'Rules: label must exactly match the requested label.',

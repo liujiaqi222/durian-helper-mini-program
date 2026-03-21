@@ -230,27 +230,25 @@ class DurianDetector:
         items: list[RawDetection],
     ) -> tuple[list[RawDetection], str | None]:
         """Apply the business filter used by /detect-and-annotate."""
-        high_confidence_items = [item for item in items if item.confidence > 0.6]
+        high_confidence_items = [item for item in items if item.confidence > 0.7]
         if high_confidence_items:
-            return self._top_by_confidence(high_confidence_items, limit=9), None
+            return self._top_by_confidence(high_confidence_items), None
 
-        fallback_items = [item for item in items if item.confidence > 0.4]
+        fallback_items = [item for item in items if item.confidence > 0.6]
         if fallback_items:
-            return self._top_by_confidence(fallback_items, limit=3), None
+            return self._top_by_confidence(fallback_items), None
 
         return [], "没有识别到榴莲"
 
     def _top_by_confidence(
         self,
         items: list[RawDetection],
-        *,
-        limit: int,
     ) -> list[RawDetection]:
-        """Pick the strongest detections while keeping tie-breakers deterministic."""
+        """Keep detections ordered by strength with deterministic tie-breakers."""
         return sorted(
             items,
             key=lambda item: (-item.confidence, item.center_y, item.center_x),
-        )[:limit]
+        )
 
     def _assign_labels(self, items: list[RawDetection]) -> list[DetectionItem]:
         """Sort detections by rows and assign stable alphabetical labels."""

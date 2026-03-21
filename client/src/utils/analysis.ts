@@ -16,6 +16,27 @@ export function isTerminalTaskStatus(status: AnalysisTaskStatus): boolean {
   return status === 'DONE' || status === 'FAILED'
 }
 
+interface InProgressMessageInput {
+  detectedCount: number
+  labels: string[]
+  status: AnalysisTaskStatus
+  hasPreview: boolean
+}
+
+export function getInProgressMessages(input: InProgressMessageInput): string[] {
+  const joinedLabels = input.labels.join('、')
+
+  if (input.status === 'SCORING' && input.hasPreview) {
+    return [`当前进展：已完成编号，正在为 ${joinedLabels || '当前目标'} 综合打分...`]
+  }
+
+  if (input.detectedCount > 0) {
+    return [`当前进展：已识别 ${input.detectedCount} 个榴莲 (${joinedLabels})`]
+  }
+
+  return []
+}
+
 function compareCandidatePriority(a: AnalysisTaskItem, b: AnalysisTaskItem): number {
   const priorityA = a.buyPriority ?? Number.MAX_SAFE_INTEGER
   const priorityB = b.buyPriority ?? Number.MAX_SAFE_INTEGER

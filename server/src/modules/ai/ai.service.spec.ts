@@ -164,6 +164,12 @@ describe('AiService', () => {
         ],
       }),
     );
+
+    const request = generateTextMock.mock.calls[0]?.[0];
+    const textPart = request?.messages[0]?.content[0];
+    expect(textPart).toEqual(expect.objectContaining({ type: 'text' }));
+    expect(textPart?.text).not.toContain('Detection confidence');
+    expect(textPart?.text).not.toContain('0.9');
   });
 
   it('falls back to heuristic scoring when ai api key is missing', async () => {

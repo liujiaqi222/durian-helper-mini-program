@@ -89,8 +89,25 @@ export default function Index() {
           <Text className='text-lg font-bold text-gray-900'>开始挑选</Text>
 
           {localImagePath ? (
-            <View className='w-full overflow-hidden rounded-2xl bg-gray-50 ring-1 ring-gray-100'>
+            <View
+              className='relative w-full overflow-hidden rounded-2xl bg-gray-50 ring-1 ring-gray-100 active:opacity-95'
+              onClick={isSubmitting ? undefined : handleChooseImage}
+            >
               <Image className='h-64 w-full' mode='aspectFill' src={localImagePath} />
+             
+              <View
+                className={`absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full ${
+                  isSubmitting ? 'bg-white/50' : 'bg-white/90'
+                }`}
+                onClick={(event) => {
+                  event.stopPropagation?.()
+                  if (!isSubmitting) {
+                    handleReset()
+                  }
+                }}
+              >
+                <Text className={`text-lg font-bold ${isSubmitting ? 'text-gray-400' : 'text-gray-600'}`}>×</Text>
+              </View>
             </View>
           ) : (
             <View 
@@ -114,30 +131,6 @@ export default function Index() {
               <Text>{isSubmitting ? '分析中...' : '立即开始挑选'}</Text>
             </View>
 
-            {localImagePath ? (
-              <View className='flex gap-3'>
-                <View
-                  className={`flex flex-1 items-center justify-center rounded-2xl py-3 text-sm font-medium transition-all ${
-                    isSubmitting
-                      ? 'bg-amber-50/50 text-amber-700/50 cursor-not-allowed'
-                      : 'bg-amber-50 text-amber-700 active:scale-95 active:bg-amber-100'
-                  }`}
-                  onClick={isSubmitting ? undefined : handleChooseImage}
-                >
-                  <Text>重新选择图片</Text>
-                </View>
-                <View
-                  className={`flex flex-1 items-center justify-center rounded-2xl py-3 text-sm font-medium transition-all ${
-                    isSubmitting
-                      ? 'bg-gray-50/50 text-gray-600/50 cursor-not-allowed'
-                      : 'bg-gray-50 text-gray-600 active:scale-95 active:bg-gray-100'
-                  }`}
-                  onClick={isSubmitting ? undefined : handleReset}
-                >
-                  <Text>清空当前进度</Text>
-                </View>
-              </View>
-            ) : null}
           </View>
         </View>
 
