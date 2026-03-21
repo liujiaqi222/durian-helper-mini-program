@@ -1,10 +1,11 @@
 import { create } from 'zustand'
-import type { AnalysisResult, AnalysisTaskStatus } from '../types/analysis'
+import type { AnalysisResult, AnalysisTask, AnalysisTaskStatus } from '../types/analysis'
 
 interface AnalysisState {
   localImagePath: string
   taskId: string
   taskStatus: AnalysisTaskStatus | null
+  taskDetail: AnalysisTask | null
   result: AnalysisResult | null
   errorMessage: string
   setLocalImage: (path: string) => void
@@ -12,6 +13,7 @@ interface AnalysisState {
     taskId: string
     taskStatus: AnalysisTaskStatus
   }) => void
+  setTaskDetail: (task: AnalysisTask) => void
   setTaskStatus: (status: AnalysisTaskStatus) => void
   setResult: (result: AnalysisResult) => void
   setErrorMessage: (message: string) => void
@@ -23,6 +25,7 @@ const initialState = {
   localImagePath: '',
   taskId: '',
   taskStatus: null,
+  taskDetail: null,
   result: null,
   errorMessage: '',
 }
@@ -38,8 +41,14 @@ export const useAnalysisStore = create<AnalysisState>((set) => ({
     set(() => ({
       taskId: payload.taskId,
       taskStatus: payload.taskStatus,
+      taskDetail: null,
       result: null,
       errorMessage: '',
+    })),
+  setTaskDetail: (task) =>
+    set(() => ({
+      taskDetail: task,
+      taskStatus: task.status,
     })),
   setTaskStatus: (status) =>
     set(() => ({

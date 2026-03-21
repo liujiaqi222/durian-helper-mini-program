@@ -4,6 +4,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  real,
   text,
   timestamp,
   uuid,
@@ -22,9 +23,11 @@ export const analysisTasks = pgTable('analysis_tasks', {
   sourceImagePath: text('source_image_path'),
   sourceImageUrl: text('source_image_url').notNull(),
   annotatedImageUrl: text('annotated_image_url'),
+  detectedCount: integer('detected_count').notNull().default(0),
+  detectedLabels: jsonb('detected_labels').notNull().default([]),
   status: analysisStatusEnum('status').notNull().default('PENDING'),
   errorMessage: text('error_message'),
-  aiSummary: text('ai_summary'),
+  overallSummary: text('overall_summary'),
   recommendedLabel: text('recommended_label'),
   rawResult: jsonb('raw_result'),
   createdAt: timestamp('created_at', { withTimezone: true })
@@ -41,12 +44,13 @@ export const analysisTaskItems = pgTable('analysis_task_items', {
     .notNull()
     .references(() => analysisTasks.id, { onDelete: 'cascade' }),
   label: text('label').notNull(),
+  bbox: jsonb('bbox').notNull(),
+  confidence: real('confidence').notNull(),
   score: integer('score'),
   summary: text('summary'),
   reasons: jsonb('reasons'),
   risks: jsonb('risks'),
   buyPriority: integer('buy_priority'),
-  cropImageUrl: text('crop_image_url'),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),

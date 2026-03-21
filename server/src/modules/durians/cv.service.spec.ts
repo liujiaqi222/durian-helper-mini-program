@@ -35,9 +35,6 @@ describe('CvService', () => {
         .fn()
         .mockResolvedValueOnce({
           fileUrl: 'http://127.0.0.1:3000/uploads/task_1-annotated.jpg',
-        })
-        .mockResolvedValueOnce({
-          fileUrl: 'http://127.0.0.1:3000/uploads/task_1-A.jpg',
         }),
     } as unknown as UploadsService;
     const config = {
@@ -60,6 +57,16 @@ describe('CvService', () => {
     expect(result.annotatedImageUrl).toBe(
       'http://127.0.0.1:3000/uploads/task_1-annotated.jpg',
     );
+    expect(result.items).toEqual([
+      {
+        bbox: { x1: 1, x2: 2, y1: 3, y2: 4 },
+        class_name: 'durian',
+        confidence: 0.98,
+        cropImageBase64: 'Y3JvcA==',
+        label: 'A',
+      },
+    ]);
+    expect(uploadsService.storeBase64Image).toHaveBeenCalledTimes(1);
     expect((logger.log as jest.Mock).mock.calls).toEqual(
       expect.arrayContaining([
         [

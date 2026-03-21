@@ -3,7 +3,7 @@ import type { AnalysisResult, AnalysisTaskItem, AnalysisTaskStatus } from '../ty
 const statusDescriptionMap: Record<AnalysisTaskStatus, string> = {
   PENDING: '任务已创建，准备开始分析',
   DETECTING: '正在识别榴莲位置和编号',
-  SCORING: '正在生成评分和购买建议',
+  SCORING: 'AI 正在生成评分和购买建议',
   DONE: '分析完成',
   FAILED: '分析失败，请重试',
 }

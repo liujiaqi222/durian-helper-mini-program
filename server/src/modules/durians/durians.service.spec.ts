@@ -5,34 +5,44 @@ import { CvService } from './cv.service';
 import { DuriansService } from './durians.service';
 import type {
   AnalysisTask,
+  AnalysisTaskItem,
   CreateAnalysisTaskInput,
   DurianAnalysisRepository,
+  ReplaceAnalysisTaskItemsInput,
 } from './durians.types';
 
 class InMemoryDurianAnalysisRepository implements DurianAnalysisRepository {
-  private readonly tasks = new Map<string, AnalysisTask>();
+  private readonly tasks = new Map<string, AnalysisTask & { items: AnalysisTaskItem[] }>();
 
   createTask(input: CreateAnalysisTaskInput): Promise<AnalysisTask> {
-    const task: AnalysisTask = {
+    const task: AnalysisTask & { items: AnalysisTaskItem[] } = {
       id: `task_${this.tasks.size + 1}`,
       sourceImagePath: input.sourceImagePath ?? null,
       sourceImageUrl: input.sourceImageUrl,
       annotatedImageUrl: null,
+      detectedCount: 0,
+      detectedLabels: [],
       status: 'PENDING',
       errorMessage: null,
-      aiSummary: null,
+      overallSummary: null,
       recommendedLabel: null,
       rawResult: null,
+      items: [],
       createdAt: new Date('2026-03-19T00:00:00.000Z'),
       updatedAt: new Date('2026-03-19T00:00:00.000Z'),
     };
 
     this.tasks.set(task.id, task);
-    return Promise.resolve(task);
+    return Promise.resolve({ ...task, items: undefined } as unknown as AnalysisTask);
   }
 
   findTaskById(id: string): Promise<AnalysisTask | null> {
-    return Promise.resolve(this.tasks.get(id) ?? null);
+    const task = this.tasks.get(id);
+    if (!task) {
+      return Promise.resolve(null);
+    }
+
+    return Promise.resolve({ ...task, items: undefined } as unknown as AnalysisTask);
   }
 
   findTaskResultById(id: string) {
@@ -42,8 +52,21 @@ class InMemoryDurianAnalysisRepository implements DurianAnalysisRepository {
     }
     return Promise.resolve({
       ...task,
-      items: [],
+      items: task.items.map((item) => ({ ...item })),
     });
+  }
+
+  replaceTaskItems(input: ReplaceAnalysisTaskItemsInput): Promise<void> {
+    const task = this.tasks.get(input.taskId);
+    if (!task) {
+      return Promise.resolve();
+    }
+
+    this.tasks.set(input.taskId, {
+      ...task,
+      items: input.items.map((item) => ({ ...item, taskId: input.taskId })),
+    });
+    return Promise.resolve();
   }
 
   updateTask(
@@ -62,7 +85,7 @@ class InMemoryDurianAnalysisRepository implements DurianAnalysisRepository {
     };
 
     this.tasks.set(id, nextTask);
-    return Promise.resolve(nextTask);
+    return Promise.resolve({ ...nextTask, items: undefined } as unknown as AnalysisTask);
   }
 }
 
@@ -71,9 +94,10 @@ describe('DuriansService', () => {
   let service: DuriansService;
   let cvService: { detectAndAnnotate: jest.Mock };
   let logger: { log: jest.Mock; warn: jest.Mock; error: jest.Mock };
-  let aiService: { summarizeDurianContext: jest.Mock };
+  let aiService: { scoreDurians: jest.Mock };
 
   beforeEach(() => {
+    jest.useFakeTimers();
     repository = new InMemoryDurianAnalysisRepository();
     cvService = {
       detectAndAnnotate: jest.fn().mockResolvedValue({
@@ -84,7 +108,7 @@ describe('DuriansService', () => {
             bbox: { x1: 10, x2: 100, y1: 20, y2: 120 },
             class_name: 'durian',
             confidence: 0.92,
-            cropImageUrl: 'http://localhost:3000/uploads/crops/task_1-A.jpg',
+            cropImageBase64: 'ZmFrZS1jcm9w',
             label: 'A',
           },
         ],
@@ -96,7 +120,20 @@ describe('DuriansService', () => {
       error: jest.fn(),
     };
     aiService = {
-      summarizeDurianContext: jest.fn().mockResolvedValue('summary'),
+      scoreDurians: jest.fn().mockResolvedValue({
+        overallSummary: 'A 综合表现最好。',
+        recommendedLabel: 'A',
+        items: [
+          {
+            label: 'A',
+            score: 92,
+            summary: '编号 A 更适合买。',
+            reasons: ['外形完整', '刺分布均匀'],
+            risks: ['仅凭图片无法判断内部状态'],
+            buyPriority: 1,
+          },
+        ],
+      }),
     };
     service = new DuriansService(
       repository,
@@ -106,64 +143,73 @@ describe('DuriansService', () => {
     );
   });
 
-  it('creates an analysis task and stores cv output for an image url', async () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  async function flushBackgroundTask(): Promise<void> {
+    await jest.runOnlyPendingTimersAsync();
+  }
+
+  it('creates a task immediately and completes it asynchronously', async () => {
     const task = await service.createAnalysisTask({
       imageUrl: 'https://example.com/durian.png',
     });
 
     expect(task.id).toBe('task_1');
-    expect(task.status).toBe('SCORING');
-    expect(task.sourceImageUrl).toBe('https://example.com/durian.png');
-    expect(task.annotatedImageUrl).toBe(
+    expect(task.status).toBe('PENDING');
+
+    await flushBackgroundTask();
+
+    const storedTask = await service.getAnalysisTask(task.id);
+    expect(storedTask.status).toBe('DONE');
+    expect(storedTask.annotatedImageUrl).toBe(
       'http://localhost:3000/uploads/annotated-task_1.jpg',
     );
-    expect(task.rawResult).toEqual({
-      annotatedImageUrl: 'http://localhost:3000/uploads/annotated-task_1.jpg',
-      count: 1,
-      items: [
-        {
-          bbox: { x1: 10, x2: 100, y1: 20, y2: 120 },
-          class_name: 'durian',
-          confidence: 0.92,
-          cropImageUrl: 'http://localhost:3000/uploads/crops/task_1-A.jpg',
-          label: 'A',
-        },
-      ],
-    });
+    expect(storedTask.detectedCount).toBe(1);
+    expect(storedTask.detectedLabels).toEqual(['A']);
+    expect(storedTask.overallSummary).toBe('A 综合表现最好。');
+    expect(storedTask.recommendedLabel).toBe('A');
     expect(cvService.detectAndAnnotate).toHaveBeenCalledWith({
       imagePath: undefined,
       imageUrl: 'https://example.com/durian.png',
       taskId: 'task_1',
     });
-    expect(aiService.summarizeDurianContext).toHaveBeenCalledWith({
-      imagePath: undefined,
-      imageUrl: 'https://example.com/durian.png',
-    });
-    expect(logger.log).toHaveBeenCalledWith(
-      expect.stringContaining('Starting durian analysis task'),
-      'DuriansService',
-    );
-    expect(logger.log).toHaveBeenCalledWith(
-      expect.stringContaining('CV detection completed'),
-      'DuriansService',
-    );
+    expect(aiService.scoreDurians).toHaveBeenCalledWith([
+      expect.objectContaining({
+        cropImageBase64: 'ZmFrZS1jcm9w',
+        imageUrl: 'https://example.com/durian.png',
+        label: 'A',
+      }),
+    ]);
   });
 
-  it('persists the uploaded image path and prefers it for cv detection', async () => {
+  it('persists uploaded image path and saves final scored items', async () => {
     const task = await service.createAnalysisTask({
       imagePath: '/tmp/uploads/task_1.jpg',
       imageUrl: 'http://localhost:3000/uploads/task_1.jpg',
     });
 
-    expect(task.sourceImagePath).toBe('/tmp/uploads/task_1.jpg');
+    await flushBackgroundTask();
+
+    const result = await service.getAnalysisResult(task.id);
+    expect(result.items).toEqual([
+      {
+        bbox: { x1: 10, x2: 100, y1: 20, y2: 120 },
+        confidence: 0.92,
+        label: 'A',
+        score: 92,
+        summary: '编号 A 更适合买。',
+        reasons: ['外形完整', '刺分布均匀'],
+        risks: ['仅凭图片无法判断内部状态'],
+        buyPriority: 1,
+        taskId: 'task_1',
+      },
+    ]);
     expect(cvService.detectAndAnnotate).toHaveBeenCalledWith({
       imagePath: '/tmp/uploads/task_1.jpg',
       imageUrl: 'http://localhost:3000/uploads/task_1.jpg',
       taskId: 'task_1',
-    });
-    expect(aiService.summarizeDurianContext).toHaveBeenCalledWith({
-      imagePath: '/tmp/uploads/task_1.jpg',
-      imageUrl: 'http://localhost:3000/uploads/task_1.jpg',
     });
   });
 
@@ -203,12 +249,29 @@ describe('DuriansService', () => {
       imageUrl: 'https://example.com/durian.png',
     });
 
-    expect(task.status).toBe('FAILED');
-    expect(task.errorMessage).toBe('cv down');
+    await flushBackgroundTask();
+
+    const storedTask = await service.getAnalysisTask(task.id);
+    expect(storedTask.status).toBe('FAILED');
+    expect(storedTask.errorMessage).toBe('cv down');
     expect(logger.error).toHaveBeenCalledWith(
       expect.stringContaining('Durian analysis task failed'),
       expect.any(String),
       'DuriansService',
     );
+  });
+
+  it('marks the task as failed when ai scoring returns invalid output', async () => {
+    aiService.scoreDurians.mockRejectedValueOnce(new Error('invalid ai json'));
+
+    const task = await service.createAnalysisTask({
+      imageUrl: 'https://example.com/durian.png',
+    });
+
+    await flushBackgroundTask();
+
+    const storedTask = await service.getAnalysisTask(task.id);
+    expect(storedTask.status).toBe('FAILED');
+    expect(storedTask.errorMessage).toBe('invalid ai json');
   });
 });

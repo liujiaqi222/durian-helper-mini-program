@@ -11,6 +11,7 @@ import type {
   AnalysisTaskWithItems,
   CreateAnalysisTaskInput,
   DurianAnalysisRepository,
+  ReplaceAnalysisTaskItemsInput,
 } from './durians.types';
 
 @Injectable()
@@ -61,6 +62,28 @@ export class DrizzleDurianAnalysisRepository implements DurianAnalysisRepository
     };
   }
 
+  async replaceTaskItems(input: ReplaceAnalysisTaskItemsInput): Promise<void> {
+    await this.db.delete(analysisTaskItems).where(eq(analysisTaskItems.taskId, input.taskId));
+
+    if (input.items.length === 0) {
+      return;
+    }
+
+    await this.db.insert(analysisTaskItems).values(
+      input.items.map((item) => ({
+        taskId: input.taskId,
+        bbox: item.bbox,
+        confidence: item.confidence,
+        label: item.label,
+        score: item.score,
+        summary: item.summary,
+        reasons: item.reasons,
+        risks: item.risks,
+        buyPriority: item.buyPriority,
+      })),
+    );
+  }
+
   async updateTask(
     id: string,
     patch: Partial<AnalysisTask>,
@@ -68,9 +91,11 @@ export class DrizzleDurianAnalysisRepository implements DurianAnalysisRepository
     const [task] = await this.db
       .update(analysisTasks)
       .set({
-        aiSummary: patch.aiSummary,
         annotatedImageUrl: patch.annotatedImageUrl,
+        detectedCount: patch.detectedCount,
+        detectedLabels: patch.detectedLabels,
         errorMessage: patch.errorMessage,
+        overallSummary: patch.overallSummary,
         rawResult: patch.rawResult,
         recommendedLabel: patch.recommendedLabel,
         sourceImagePath: patch.sourceImagePath,
@@ -85,11 +110,15 @@ export class DrizzleDurianAnalysisRepository implements DurianAnalysisRepository
 
   private mapTask(task: typeof analysisTasks.$inferSelect): AnalysisTask {
     return {
-      aiSummary: task.aiSummary,
       annotatedImageUrl: task.annotatedImageUrl,
       createdAt: task.createdAt,
+      detectedCount: task.detectedCount,
+      detectedLabels: Array.isArray(task.detectedLabels)
+        ? (task.detectedLabels as string[])
+        : [],
       errorMessage: task.errorMessage,
       id: task.id,
+      overallSummary: task.overallSummary,
       rawResult: (task.rawResult as Record<string, unknown> | null) ?? null,
       recommendedLabel: task.recommendedLabel,
       sourceImagePath: task.sourceImagePath,
@@ -103,8 +132,9 @@ export class DrizzleDurianAnalysisRepository implements DurianAnalysisRepository
     item: typeof analysisTaskItems.$inferSelect,
   ): AnalysisTaskItem {
     return {
+      bbox: item.bbox as AnalysisTaskItem['bbox'],
+      confidence: item.confidence,
       buyPriority: item.buyPriority,
-      cropImageUrl: item.cropImageUrl,
       id: item.id,
       label: item.label,
       reasons: (item.reasons as string[] | null) ?? null,

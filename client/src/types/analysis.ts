@@ -15,26 +15,34 @@ export interface AnalysisTask {
   sourceImagePath: string | null
   sourceImageUrl: string
   annotatedImageUrl: string | null
+  detectedCount: number
+  detectedLabels: string[]
   status: AnalysisTaskStatus
   errorMessage: string | null
-  aiSummary: string | null
+  overallSummary: string | null
   recommendedLabel: string | null
 }
 
 export interface AnalysisTaskItem {
+  bbox: {
+    x1: number
+    x2: number
+    y1: number
+    y2: number
+  }
+  confidence: number
   label: string
   score: number | null
   summary: string | null
   reasons: string[] | null
   risks: string[] | null
   buyPriority: number | null
-  cropImageUrl: string | null
 }
 
 export interface AnalysisResult {
   sourceImageUrl: string
   annotatedImageUrl: string | null
   recommendedLabel: string | null
-  aiSummary: string | null
+  overallSummary: string | null
   items: AnalysisTaskItem[]
 }

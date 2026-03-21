@@ -38,7 +38,7 @@ export interface DetectAndAnnotateOutput {
     bbox: CvDetectionItem['bbox'];
     class_name: string;
     confidence: number;
-    cropImageUrl: string | null;
+    cropImageBase64: string | null;
     label: string;
   }>;
   message?: string | null;
@@ -66,26 +66,13 @@ export class CvService {
         ).fileUrl
       : null;
 
-    const items = await Promise.all(
-      response.items.map(async (item) => {
-        const cropImageUrl = item.crop_image_base64
-          ? (
-              await this.uploadsService.storeBase64Image(
-                item.crop_image_base64,
-                `${input.taskId}-${item.label}`,
-              )
-            ).fileUrl
-          : null;
-
-        return {
-          bbox: item.bbox,
-          class_name: item.class_name,
-          confidence: item.confidence,
-          cropImageUrl,
-          label: item.label,
-        };
-      }),
-    );
+    const items = response.items.map((item) => ({
+      bbox: item.bbox,
+      class_name: item.class_name,
+      confidence: item.confidence,
+      cropImageBase64: item.crop_image_base64 ?? null,
+      label: item.label,
+    }));
 
     return {
       annotatedImageUrl,

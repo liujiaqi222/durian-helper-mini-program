@@ -11,12 +11,15 @@ import { DURIAN_ANALYSIS_REPOSITORY } from './durians.constants';
 import { CvService } from './cv.service';
 import type {
   AnalysisTask,
+  AnalysisTaskItem,
   AnalysisTaskWithItems,
   DurianAnalysisRepository,
 } from './durians.types';
 
 @Injectable()
 export class DuriansService {
+  private readonly activeTaskIds = new Set<string>();
+
   constructor(
     @Inject(DURIAN_ANALYSIS_REPOSITORY)
     private readonly repository: DurianAnalysisRepository,
@@ -33,8 +36,9 @@ export class DuriansService {
       sourceImagePath: input.imagePath,
       sourceImageUrl: input.imageUrl,
     });
+
     this.logger.log(
-      `Starting durian analysis task ${JSON.stringify({
+      `Created durian analysis task ${JSON.stringify({
         imagePath: input.imagePath ?? null,
         imageUrl: input.imageUrl,
         taskId: task.id,
@@ -42,87 +46,8 @@ export class DuriansService {
       'DuriansService',
     );
 
-    await this.repository.updateTask(task.id, {
-      sourceImagePath: input.imagePath ?? null,
-      status: 'DETECTING',
-    });
-    this.logger.log(
-      `Durian analysis task moved to DETECTING ${JSON.stringify({
-        taskId: task.id,
-      })}`,
-      'DuriansService',
-    );
-
-    try {
-      const detectionResult = await this.cvService.detectAndAnnotate({
-        imagePath: input.imagePath,
-        imageUrl: input.imageUrl,
-        taskId: task.id,
-      });
-      this.logger.log(
-        `CV detection completed ${JSON.stringify({
-          annotatedImageUrl: detectionResult.annotatedImageUrl,
-          count: detectionResult.count,
-          itemLabels: detectionResult.items.map((item) => item.label),
-          taskId: task.id,
-        })}`,
-        'DuriansService',
-      );
-      const aiSummary = await this.aiService
-        .summarizeDurianContext({
-          imagePath: input.imagePath,
-          imageUrl: input.imageUrl,
-        })
-        .catch((error) => {
-          this.logger.error(
-            `AI summary generation failed ${JSON.stringify({
-              imagePath: input.imagePath ?? null,
-              imageUrl: input.imageUrl,
-              taskId: task.id,
-            })}`,
-            error instanceof Error ? error.stack : undefined,
-            'DuriansService',
-          );
-          return null;
-        });
-
-      if (aiSummary) {
-        this.logger.log(
-          `AI summary received ${JSON.stringify({
-            summary: aiSummary,
-            taskId: task.id,
-          })}`,
-          'DuriansService',
-        );
-      }
-
-      return (
-        (await this.repository.updateTask(task.id, {
-          aiSummary,
-          annotatedImageUrl: detectionResult.annotatedImageUrl,
-          rawResult: detectionResult as unknown as Record<string, unknown>,
-          status: 'SCORING',
-        })) ?? task
-      );
-    } catch (error) {
-      this.logger.error(
-        `Durian analysis task failed ${JSON.stringify({
-          imageUrl: input.imageUrl,
-          taskId: task.id,
-        })}`,
-        error instanceof Error ? error.stack : undefined,
-        'DuriansService',
-      );
-      return (
-        (await this.repository.updateTask(task.id, {
-          errorMessage:
-            error instanceof Error
-              ? error.message
-              : 'cv-service request failed',
-          status: 'FAILED',
-        })) ?? task
-      );
-    }
+    this.scheduleTaskProcessing(task.id);
+    return task;
   }
 
   async getAnalysisTask(taskId: string): Promise<AnalysisTask> {
@@ -154,9 +79,17 @@ export class DuriansService {
       'DuriansService',
     );
 
+    await this.repository.replaceTaskItems({
+      taskId: task.id,
+      items: [],
+    });
+
     const nextTask = await this.repository.updateTask(task.id, {
-      aiSummary: null,
+      annotatedImageUrl: null,
+      detectedCount: 0,
+      detectedLabels: [],
       errorMessage: null,
+      overallSummary: null,
       rawResult: null,
       recommendedLabel: null,
       status: 'PENDING',
@@ -166,6 +99,130 @@ export class DuriansService {
       throw new NotFoundException(`Task ${taskId} not found`);
     }
 
+    this.scheduleTaskProcessing(task.id);
     return nextTask;
+  }
+
+  private scheduleTaskProcessing(taskId: string): void {
+    if (this.activeTaskIds.has(taskId)) {
+      return;
+    }
+
+    this.activeTaskIds.add(taskId);
+    setTimeout(() => {
+      void this.processTask(taskId).finally(() => {
+        this.activeTaskIds.delete(taskId);
+      });
+    }, 0);
+  }
+
+  private async processTask(taskId: string): Promise<void> {
+    const task = await this.getAnalysisTask(taskId);
+    const imagePath = task.sourceImagePath ?? undefined;
+    const imageUrl = task.sourceImageUrl;
+
+    await this.repository.updateTask(task.id, {
+      errorMessage: null,
+      status: 'DETECTING',
+    });
+    this.logger.log(
+      `Durian analysis task moved to DETECTING ${JSON.stringify({
+        taskId: task.id,
+      })}`,
+      'DuriansService',
+    );
+
+    try {
+      const detectionResult = await this.cvService.detectAndAnnotate({
+        imagePath,
+        imageUrl,
+        taskId: task.id,
+      });
+      const detectedLabels = detectionResult.items.map((item) => item.label);
+
+      await this.repository.updateTask(task.id, {
+        annotatedImageUrl: detectionResult.annotatedImageUrl,
+        detectedCount: detectionResult.count,
+        detectedLabels,
+        rawResult: detectionResult as unknown as Record<string, unknown>,
+        status: 'SCORING',
+      });
+      this.logger.log(
+        `CV detection completed ${JSON.stringify({
+          annotatedImageUrl: detectionResult.annotatedImageUrl,
+          count: detectionResult.count,
+          itemLabels: detectedLabels,
+          taskId: task.id,
+        })}`,
+        'DuriansService',
+      );
+
+      const scored = await this.aiService.scoreDurians(
+        detectionResult.items.map((item) => ({
+          bbox: item.bbox,
+          confidence: item.confidence,
+          cropImageBase64: item.cropImageBase64,
+          imagePath,
+          imageUrl,
+          label: item.label,
+        })),
+      );
+
+      const taskItems: AnalysisTaskItem[] = detectionResult.items.map((item) => {
+        const score = scored.items.find((candidate) => candidate.label === item.label);
+        if (!score) {
+          throw new Error(`Missing AI score for detected label ${item.label}`);
+        }
+
+        return {
+          bbox: item.bbox,
+          confidence: item.confidence,
+          label: item.label,
+          score: score.score,
+          summary: score.summary,
+          reasons: score.reasons,
+          risks: score.risks,
+          buyPriority: score.buyPriority,
+        };
+      });
+
+      await this.repository.replaceTaskItems({
+        taskId: task.id,
+        items: taskItems,
+      });
+
+      await this.repository.updateTask(task.id, {
+        overallSummary: scored.overallSummary,
+        recommendedLabel: scored.recommendedLabel,
+        status: 'DONE',
+      });
+      this.logger.log(
+        `Durian analysis task completed ${JSON.stringify({
+          recommendedLabel: scored.recommendedLabel,
+          taskId: task.id,
+        })}`,
+        'DuriansService',
+      );
+    } catch (error) {
+      this.logger.error(
+        `Durian analysis task failed ${JSON.stringify({
+          imageUrl,
+          taskId: task.id,
+        })}`,
+        error instanceof Error ? error.stack : undefined,
+        'DuriansService',
+      );
+      await this.repository.replaceTaskItems({
+        taskId: task.id,
+        items: [],
+      });
+      await this.repository.updateTask(task.id, {
+        errorMessage:
+          error instanceof Error ? error.message : 'durian analysis failed',
+        overallSummary: null,
+        recommendedLabel: null,
+        status: 'FAILED',
+      });
+    }
   }
 }

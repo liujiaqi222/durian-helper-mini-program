@@ -1,18 +1,18 @@
-# `POST /durians/analyze` 接口现状与调整方案
+# `POST /durians/analyze` 接口现状梳理
 
-本文记录当前 `server` 中 `durians.controller.ts` 的 `analyze` 接口实际执行流程，并补充后续准备采用的调整方案，重点覆盖：
+本文记录当前 `server` 中 `durians.controller.ts` 的 `POST /durians/analyze` 实际实现方式，并同步说明当前 `cv-service`、`server`、`client` 三端已经完成的改造，重点覆盖：
 
-- AI 如何基于 crop 对单个榴莲打分
-- AI 输出如何约束为 JSON，并由后端汇总后返回前端
-- crop 图片为何不需要持久化
-- 小程序如何按阶段及时展示“识别中 / AI 打分中 / 已完成”
-- 明确当前不做的事情
+- 当前上传、检测、AI 评分、结果汇总的真实链路
+- AI 如何基于 crop 对单个榴莲输出结构化评分
+- crop 图片为何不再持久化
+- 小程序如何按阶段展示“识别中 / AI 打分中 / 已完成”
+- 当前已实现与仍未实现的边界
 
 ## 1. 当前实现现状
 
 入口位于 `server/src/modules/durians/durians.controller.ts` 的 `POST /durians/analyze`。
 
-当前一次请求会按下面顺序执行：
+当前一次请求按下面顺序执行：
 
 1. 使用 `FileInterceptor('file')` 接收上传文件，并限制文件大小为 10MB。
 2. 如果没有传 `file`，直接返回 `400 Bad Request`，错误信息为 `file is required`。
@@ -20,36 +20,62 @@
 4. 调用 `UploadsService.storeUploadedFile()` 将原图保存到本地 `uploads/` 目录，得到：
    - `localPath`
    - `fileUrl`
-5. 调用 `DuriansService.createAnalysisTask()`，将 `localPath` 和 `fileUrl` 作为分析输入传入。
-6. `DuriansService` 创建任务记录，初始状态为 `PENDING`，随后立即更新为 `DETECTING`。
-7. `DuriansService` 同步调用 `CvService.detectAndAnnotate()`，将图片发给 Python `cv-service`。
-8. `CvService` 优先读取本地 `imagePath`，组装 `multipart/form-data` 请求，转发到 `cv-service` 的 `/detect-and-annotate`。
-9. Python 服务返回：
+5. 调用 `DuriansService.createAnalysisTask()` 创建任务，写入：
+   - `sourceImagePath`
+   - `sourceImageUrl`
+   - `status = PENDING`
+6. Controller 立即返回：
+   - `taskId`
+   - `status`
+7. `DuriansService` 在单进程内异步启动后台处理，不阻塞本次 HTTP 响应。
+8. 后台任务先把状态推进到 `DETECTING`，再调用 `CvService.detectAndAnnotate()`。
+9. `CvService` 优先读取本地 `imagePath`，组装 `multipart/form-data` 请求，转发到 Python `cv-service` 的 `/detect-and-annotate`。
+10. Python 服务返回：
    - 标注后的整图 `annotated_image_base64`
    - 每个榴莲的裁剪图 `crop_image_base64`
    - 检测框坐标 `bbox`
    - 置信度 `confidence`
    - 稳定标签 `label`
-10. `CvService` 当前会把标注图和 crop 图都再次落盘，转换为可访问 URL。
-11. `DuriansService` 再调用 `AiService.summarizeDurianContext()`，让大模型基于整图生成一句简短摘要。
-12. 最后任务只会更新：
+11. `CvService` 只会把标注图落盘，生成 `annotatedImageUrl`；crop 不落盘、不生成 URL。
+12. `DuriansService` 记录检测阶段结果，更新：
    - `annotatedImageUrl`
+   - `detectedCount`
+   - `detectedLabels`
    - `rawResult`
-   - `aiSummary`
    - `status = SCORING`
-13. Controller 返回：
-   - `taskId`
-   - `status`
-
-如果 `cv-service` 请求失败，则任务状态会被更新为 `FAILED`，并记录 `errorMessage`。
+13. `DuriansService` 调用 `AiService.scoreDurians()`，把每个榴莲的：
+   - `label`
+   - `bbox`
+   - `confidence`
+   - `cropImageBase64`
+   - 原图信息
+   交给 AI 评分。
+14. `AiService` 要求模型返回严格 JSON；如果没有配置 AI key，则回退到基于检测置信度的启发式评分。
+15. 后端把 AI 评分结果写入 `analysis_task_items`，再汇总：
+   - `recommendedLabel`
+   - `overallSummary`
+   - `status = DONE`
+16. 如果 CV 请求失败、AI 输出非法、或任务中途报错，则任务被更新为：
+   - `status = FAILED`
+   - `errorMessage = 失败原因`
 
 ## 2. 当前“分析榴莲”的实际能力
 
-严格来说，当前系统实现的是“榴莲检测与标号”，不是完整的“榴莲评分”。
+当前系统已经不再只是“榴莲检测与标号”，而是已经具备完整的 MVP 闭环：
+
+- 检测榴莲
+- 对榴莲稳定编号
+- 生成带编号的标注图
+- 提取每个榴莲 crop 供 AI 使用
+- 对每个榴莲输出结构化评分
+- 汇总推荐编号和整体结论
+- 支持前端按阶段轮询任务状态
+
+但这仍然是 MVP，评分结果仍然属于“基于图片可见信息的保守建议”，不是专业验果结论。
 
 ### 2.1 Python 侧当前在做什么
 
-Python 侧核心逻辑在 `cv-service/app/services/detector.py`，大致流程如下：
+Python 侧核心逻辑在 `cv-service/app/services/detector.py`，当前职责保持不变：
 
 1. 读取图片并完成基础校验。
 2. 使用 YOLO 模型做目标检测。
@@ -66,70 +92,57 @@ Python 侧核心逻辑在 `cv-service/app/services/detector.py`，大致流程�
 6. 根据检测框从原图裁出 crop。
 7. 在原图上绘制序号框，生成标注图。
 
+Python 当前仍然只负责“检测、编号、裁剪、标注”，不负责评分，不负责推荐，也不负责持久化业务结果。
+
 ### 2.2 当前系统能稳定产出的结果
 
 当前能稳定得到的是：
 
 - 检测到几个榴莲
-- 每个榴莲的大致位置
-- 每个榴莲的置信度
+- 每个榴莲的大致位置 `bbox`
+- 每个榴莲的置信度 `confidence`
 - 每个榴莲的标签 `A/B/C...`
 - 一张带序号的标注图
-- 每个榴莲对应的 crop
-- 一段基于整图的 AI 简短摘要
+- 每个榴莲对应的 crop base64
+- 每个榴莲的结构化评分：
+  - `score`
+  - `summary`
+  - `reasons`
+  - `risks`
+  - `buyPriority`
+- 任务级推荐结果：
+  - `recommendedLabel`
+  - `overallSummary`
 
-### 2.3 当前系统还不能回答的问题
+### 2.3 当前仍然不能稳定回答的问题
 
 当前还不能稳定回答：
 
-- 哪个榴莲更值得买
-- 哪个成熟度更合适
-- 哪个存在裂口、病斑、风险
-- 推荐优先选择哪个编号
+- 榴莲内部是否干包、坏果、夹生
+- 仅凭单图精确判断成熟度
+- 作为专业采购标准的绝对“最优果”
 
-原因是目前没有真正把每个 crop 的信息转成结构化评分，也没有把任务推进到完整的 `DONE` 结果闭环。
+原因很明确：当前评分仍然依赖单张外观图和通用 AI 判断，不能替代线下开果或专业经验。
 
-## 3. 需要调整的方向
+## 3. 当前主流程
 
-后续方案应从“检测与标号”升级为“检测、标号、逐个评分、汇总推荐”，但不引入额外 worker，也不在 Python 里增加第二阶段分类模型。
+### 3.1 总体思路
 
-这意味着新的主流程应该是：
+当前已落地的主链路是：
 
-1. 先让 Python 完成检测和标号。
-2. 立即把带序号的标注图返回给前端或可供前端轮询获取。
-3. 后端拿 Python 返回的 crop，逐个或批量交给 AI 做评分。
-4. AI 必须返回严格 JSON。
-5. 后端把 AI 的 JSON 结果和检测结果汇总，生成最终任务结果。
-6. 前端按阶段展示状态，而不是一直停在“分析中”。
+1. 小程序上传原图到 `server`
+2. `server` 保存原图并创建任务
+3. 后台调用 `cv-service` 检测、编号、生成标注图和 crop
+4. `server` 保存标注图，但不保存 crop
+5. `server` 调 AI 对每个 crop 输出严格 JSON
+6. `server` 汇总任务级推荐结果
+7. 小程序轮询任务状态并按阶段展示
 
-## 4. 建议采用的目标方案
-
-### 4.1 总体思路
-
-建议保留当前“用户上传图片 -> Nest 调 Python -> Python 返回检测结果”的主链路，但把后半段改成真正的“评分链路”：
-
-1. Python 负责：
-   - 检测榴莲
-   - 给榴莲标号
-   - 返回标注图
-   - 返回 crop 的 base64
-2. Nest 负责：
-   - 保存原图
-   - 保存标注图
-   - 不保存 crop 图
-   - 调 AI 读取每个 crop 并输出评分 JSON
-   - 汇总为最终结构化结果
-3. 小程序负责：
-   - 先展示原图上传成功
-   - 再展示“已识别出 A/B/C...”
-   - 再展示“AI 正在打分”
-   - 最后展示评分和推荐结果
-
-### 4.2 为什么 crop 不需要存储
+### 3.2 为什么 crop 不再存储
 
 crop 图本质上只是 AI 评分阶段的中间产物，不是长期业务资产。
 
-建议调整为：
+当前实现已经调整为：
 
 - Python 仍然返回 `crop_image_base64`
 - Nest 在内存中直接把 crop 传给 AI
@@ -139,21 +152,21 @@ crop 图本质上只是 AI 评分阶段的中间产物，不是长期业务资�
 
 - 减少磁盘写入
 - 减少 URL 管理成本
-- 减少无意义的文件残留
-- 避免把仅供模型消费的中间数据当成正式静态资源
+- 避免保留无意义中间文件
+- 明确“可展示图片”和“仅供模型消费图片”的边界
 
-真正需要落盘并给前端展示的图片，只有：
+当前真正需要落盘并给前端展示的图片，只有：
 
 - 用户原图
 - 带序号的标注图
 
-## 5. AI 对 crop 打分的方案
+## 4. AI 对 crop 打分的方案
 
-### 5.1 目标
+### 4.1 当前目标
 
-AI 的职责不是“凭空写一段评价”，而是针对每个已经编号的榴莲输出结构化评分结果。
+AI 的职责不是自由写评价，而是针对每个已编号榴莲输出结构化评分结果，并由后端再汇总成任务级推荐。
 
-输出至少要覆盖：
+当前结构化评分至少覆盖：
 
 - `label`
 - `score`
@@ -162,84 +175,86 @@ AI 的职责不是“凭空写一段评价”，而是针对每个已经编号�
 - `risks`
 - `buyPriority`
 
-同时，后端需要从所有 item 中汇总出：
+任务级汇总至少覆盖：
 
 - `recommendedLabel`
 - `overallSummary`
 
-### 5.2 推荐的数据流
+### 4.2 当前数据流
 
-建议的数据流如下：
+当前实际数据流如下：
 
 1. Python 返回检测结果：
    - `annotated_image_base64`
+   - `count`
    - `items[]`
-   - 每个 item 包含：
-     - `label`
-     - `bbox`
-     - `confidence`
-     - `crop_image_base64`
-2. Nest 保存标注图，更新任务状态为“已完成识别，准备 AI 打分”。
-3. Nest 调 AI 时，把以下上下文一起传入：
+2. 每个 `item` 包含：
+   - `label`
+   - `bbox`
+   - `confidence`
+   - `crop_image_base64`
+3. Nest 保存标注图，更新任务：
+   - `annotatedImageUrl`
+   - `detectedCount`
+   - `detectedLabels`
+   - `status = SCORING`
+4. Nest 调 AI 时，把以下上下文传入：
    - 原图 URL 或原图二进制
-   - 标注图 URL 或标注图二进制
    - 当前 crop 图
    - 当前榴莲 label
    - 当前榴莲 bbox
    - 当前榴莲 detection confidence
-4. AI 输出严格 JSON。
-5. Nest 校验 JSON，写入 `analysis_task_items`。
-6. Nest 根据所有 item 的评分汇总出 `recommendedLabel` 和整体摘要。
-7. 任务状态更新为 `DONE`。
+5. AI 输出严格 JSON。
+6. 后端校验 JSON，并写入 `analysis_task_items`。
+7. 后端根据所有 item 的评分汇总出 `recommendedLabel` 和 `overallSummary`。
+8. 任务状态更新为 `DONE`。
 
-### 5.3 推荐的单个榴莲评分字段
+### 4.3 当前单个榴莲评分字段
 
-建议单个 item 使用如下结构：
+当前单个 item 的目标结构如下：
 
 ```json
 {
   "label": "A",
   "score": 86,
-  "summary": "外形完整，果刺较均匀，成熟度较适中，适合买。",
+  "summary": "外形完整，成熟度较适中，适合买。",
   "reasons": [
     "果形较饱满",
-    "刺间距较自然",
-    "表面未见明显大面积破损"
+    "刺分布较均匀"
   ],
   "risks": [
-    "仅凭单张图片无法确认内部干包或坏果"
+    "仅凭图片无法判断内部状态"
   ],
   "buyPriority": 1
 }
 ```
 
-字段约束建议：
+字段约束：
 
 - `label`: 必须和检测标签一致
 - `score`: `0-100` 整数
-- `summary`: 1 句短总结，便于前端直接展示
-- `reasons`: 2 到 4 条正向判断依据
+- `summary`: 1 句短总结
+- `reasons`: 2 到 4 条正向依据
 - `risks`: 0 到 3 条风险提示
-- `buyPriority`: 正整数，`1` 代表最推荐
+- `buyPriority`: 正整数，`1` 表示最推荐
 
-### 5.4 后端最终汇总结果建议
+### 4.4 当前最终结果结构
 
-后端最终返回给前端的任务结果建议分为两层：
+当前 `GET /durians/tasks/:taskId/result` 返回的核心结构分为两层：
 
 1. 任务级别
 2. 榴莲 item 级别
 
-推荐结构如下：
+返回示意如下：
 
 ```json
 {
-  "taskId": "xxx",
+  "id": "xxx",
   "status": "DONE",
-  "stage": "COMPLETED",
   "sourceImageUrl": "https://...",
   "annotatedImageUrl": "https://...",
   "recommendedLabel": "A",
-  "overallSummary": "本次共识别出 3 个榴莲，A 综合表现最好，B 次之，C 风险较高。",
+  "overallSummary": "本次共识别出 3 个榴莲，A 综合表现最好，建议优先选择。",
   "items": [
     {
       "label": "A",
@@ -261,152 +276,81 @@ AI 的职责不是“凭空写一段评价”，而是针对每个已经编号�
 - `score`、`summary`、`reasons`、`risks`、`buyPriority` 来自 AI
 - `recommendedLabel`、`overallSummary` 由后端汇总生成
 
-### 5.5 推荐的 AI Prompt 设计
+### 4.5 当前 AI 输出约束
 
-建议不要让 AI 自由发挥，而是给它一个严格角色和严格输出格式。
+当前 AI 已经按“严格 JSON”思路实现，后端会做校验，不接受自由文本主结果。
 
-#### System Prompt 建议
+后端当前会检查：
 
-```text
-你是一个榴莲挑选助手。你需要根据单个榴莲的局部图片，对这个榴莲进行购买价值评分。
+- JSON 能否被正常解析
+- `label` 是否与检测标签一致
+- `score` 是否在合法范围内
+- `reasons`、`risks` 是否满足预期数组结构
 
-你的目标不是判断“绝对真相”，而是基于图片中可见特征，给出谨慎、可解释、保守的购买建议。
+如果校验失败，本次任务会进入 `FAILED`，并记录错误信息。
 
-你必须遵守以下规则：
-1. 只能依据图片中可见的外观信息做判断，不能臆测不可见的内部果肉状态。
-2. 如果证据不足，要明确写入 risks，不要过度自信。
-3. 输出必须是合法 JSON，不允许输出 Markdown，不允许输出解释性前言，不允许使用代码块。
-4. score 必须是 0 到 100 的整数。
-5. reasons 必须是字符串数组，给出 2 到 4 条。
-6. risks 必须是字符串数组，给出 0 到 3 条。
-7. summary 必须简短，适合直接展示给用户。
-8. label 必须与输入 label 完全一致。
-```
+### 4.6 当前无 AI Key 时的兜底
 
-#### User Prompt 建议
+如果没有配置 `ai.apiKey`，当前不会直接中断整条链路，而是回退到启发式评分：
 
-```text
-请分析编号为 {{label}} 的榴莲 crop 图片，并返回 JSON。
+- 分数基于 detection confidence 映射
+- 推荐文案使用固定模板
+- 风险提示使用保守默认文案
 
-已知上下文：
-- 榴莲编号：{{label}}
-- 检测框：{{bbox_json}}
-- 检测置信度：{{confidence}}
-- 这是一张从整图中裁切出来的局部图，可能存在角度、遮挡、光照影响。
+这样可以保证本地联调时仍然能走通 `DONE` 结果闭环。
 
-评分标准：
-- 重点关注外观完整度、果形是否饱满、刺的状态是否自然、表面是否有明显破损、是否存在肉眼可见风险。
-- 不要根据看不见的内部状态做确定性结论。
-- 如果图像信息不足，请在 risks 中说明。
+## 5. 前端状态展示方案
 
-请严格按照以下 JSON 结构返回：
-{
-  "label": "{{label}}",
-  "score": 0,
-  "summary": "",
-  "reasons": [],
-  "risks": [],
-  "buyPriority": 0
-}
-```
+从用户视角，最重要的不是看到一个“转圈”，而是知道当前处在哪个阶段。
 
-#### 汇总 Prompt 建议
+当前前端已经按任务状态分阶段展示。
 
-在单个 item 打分完成后，还可以追加一次“汇总 Prompt”，让 AI 或后端生成全局总结。
+### 5.1 当前阶段定义
 
-如果由后端规则汇总，建议：
+当前前端主要围绕以下状态工作：
 
-- 按 `score` 从高到低排序
-- `buyPriority = 1` 的 label 作为 `recommendedLabel`
-- `overallSummary` 用模板拼接
-
-如果由 AI 汇总，输入应为所有 item 的结构化 JSON，而不是再次传图。
-
-推荐汇总输出：
-
-```json
-{
-  "recommendedLabel": "A",
-  "overallSummary": "本次识别出 3 个榴莲，A 综合外观最好，建议优先考虑；B 表现中等；C 存在更明显风险。"
-}
-```
-
-### 5.6 为什么要用 JSON 约束 AI 输出
-
-必须让 AI 输出 JSON，而不是自由文本，原因很明确：
-
-- 后端需要稳定写库
-- 前端需要稳定渲染
-- 便于对字段做校验、兜底和排序
-- 能直接生成 `analysis_task_items`
-- 能降低 prompt 漂移对接口结构的影响
-
-后端必须对 AI 输出增加校验：
-
-- JSON 解析失败则判定本次评分失败
-- `label` 不匹配则判定结果无效
-- `score` 超出范围则拒收
-- `reasons`、`risks` 类型错误则拒收
-
-## 6. 前端状态展示方案
-
-从用户视角，最重要的不是只看到一个“转圈”，而是知道现在到底走到哪一步。
-
-建议任务状态区分为“数据库状态”和“前端展示阶段”两层。
-
-### 6.1 建议的阶段定义
-
-建议前端展示以下阶段：
-
-1. `UPLOADING`
-   - 用户刚提交图片
-   - 小程序展示“图片上传中”
+1. `PENDING`
+   - 任务已创建，后台尚未开始或刚开始处理
+   - 小程序展示“任务已创建，准备开始分析”
 2. `DETECTING`
    - 服务端正在调用 Python 识别榴莲
-   - 小程序展示“正在识别榴莲并编号”
-3. `DETECTION_READY`
-   - Python 已返回标注图
-   - 小程序立即展示带 `A/B/C...` 序号的标注图
-   - 同时提示“已识别榴莲，AI 正在逐个打分”
-4. `SCORING`
-   - 后端正在调用 AI 对 crop 打分
-   - 小程序展示“AI 正在分析每个榴莲”
-5. `DONE`
+   - 小程序展示“正在识别榴莲位置和编号”
+3. `SCORING`
+   - Python 已返回标注图，后端正在调用 AI 逐个评分
+   - 小程序会优先展示标注图和已识别的 `A/B/C...`
+   - 同时提示“AI 正在生成评分和购买建议”
+4. `DONE`
    - 所有评分和推荐都已生成
    - 小程序展示最终结果页
-6. `FAILED`
+5. `FAILED`
    - 任一关键步骤失败
    - 小程序展示失败原因和重试入口
 
-### 6.2 为什么要先返回标注图
+### 5.2 为什么要先返回标注图
 
-用户一旦能看到序号图，就能理解“系统已经看懂了图里有哪些榴莲”，这会显著降低等待焦虑。
+只要用户先看到序号图，就能理解“系统已经识别出货架里的榴莲”。
 
-因此建议：
+因此当前实现中：
 
-- Python 一完成检测和标号，就尽快让前端拿到 `annotatedImageUrl`
-- 即便 AI 评分还没结束，前端也应该能先展示序号图
+- 检测一完成，任务详情接口就会带上 `annotatedImageUrl`
+- 即便 AI 评分还没结束，前端也能先展示标注图
+- 结果页会在 `SCORING` 阶段提示“已识别 X 个榴莲：A、B、C”
 
-这样用户感知是：
+### 5.3 当前接口返回结构
 
-1. 图片上传成功
-2. 榴莲已识别并编号
-3. AI 正在对 A/B/C 分别打分
-4. 最终推荐结果已生成
-
-### 6.3 返回结构建议
-
-为了支撑阶段性展示，建议 `GET /durians/tasks/:taskId` 返回更完整的任务快照，例如：
+为了支撑阶段性展示，当前 `GET /durians/tasks/:taskId` 已返回更完整的任务快照，核心字段包括：
 
 ```json
 {
-  "taskId": "xxx",
+  "id": "xxx",
   "status": "SCORING",
-  "stage": "SCORING",
   "sourceImageUrl": "https://...",
   "annotatedImageUrl": "https://...",
+  "detectedCount": 3,
   "detectedLabels": ["A", "B", "C"],
-  "message": "已完成榴莲识别，AI 正在逐个评分"
+  "errorMessage": null,
+  "overallSummary": null,
+  "recommendedLabel": null
 }
 ```
 
@@ -414,9 +358,8 @@ AI 的职责不是“凭空写一段评价”，而是针对每个已经编号�
 
 ```json
 {
-  "taskId": "xxx",
+  "id": "xxx",
   "status": "DONE",
-  "stage": "COMPLETED",
   "annotatedImageUrl": "https://...",
   "recommendedLabel": "A",
   "overallSummary": "A 综合表现最好",
@@ -424,43 +367,64 @@ AI 的职责不是“凭空写一段评价”，而是针对每个已经编号�
 }
 ```
 
-## 7. 当前实现要删掉或调整的点
+## 6. 当前实现中已经完成的关键调整
 
-### 7.1 不再存储 crop 图片
+### 6.1 已去掉 crop 持久化
 
-当前 `CvService` 会把每个 crop 也保存为 URL。后续应去掉这一步。
+当前 `CvService` 已不再把每个 crop 保存为 URL。
 
-目标改为：
+当前行为是：
 
 - 标注图保留并落盘
-- crop 只在当前请求或当前任务处理中存在
+- crop 只在当前任务处理中存在
 - crop 仅作为发给 AI 的中间输入
 
-### 7.2 不再只做整图摘要
+### 6.2 已从整图摘要切到逐个评分
 
-当前 AI 仅对整图生成一句摘要，价值有限。
+当前 AI 已不再只做整图一句摘要。
 
-后续重点应改为：
+当前主结果已经切换为：
 
 - 逐个 crop 的结构化评分
-- 最终任务级别的汇总推荐
+- 任务级别的推荐汇总
 
-整图摘要如果保留，应该降级为附加信息，而不是主结果。
+`overallSummary` 是当前主汇总字段，旧的 `aiSummary` 已不再作为主契约使用。
 
-## 8. 明确不做的事情
+### 6.3 已增加任务级阶段字段
 
-以下方向目前不纳入方案：
+当前任务模型已经补齐：
+
+- `detectedCount`
+- `detectedLabels`
+- `overallSummary`
+
+item 模型已经补齐：
+
+- `bbox`
+- `confidence`
+- `score`
+- `summary`
+- `reasons`
+- `risks`
+- `buyPriority`
+
+## 7. 当前明确不做的事情
+
+以下方向当前仍不纳入实现范围：
 
 1. 不引入 worker 或独立后台任务系统。
 2. 不引入 Python 对每个 crop 做二阶段质量分类。
 3. 不增加多任务视觉模型去判断成熟度、病斑、裂口等细分类别。
+4. 不对 crop 做对象存储或公开静态访问。
+5. 前端不做历史记录、登录态、分享卡片。
 
 当前阶段只采用：
 
 - Python 做目标检测和标号
 - AI 基于 crop 做结构化评分
 - Nest 汇总结果并返回前端
+- 小程序按阶段轮询并展示
 
-## 9. 一句话总结
+## 8. 一句话总结
 
-当前 `POST /durians/analyze` 已经打通了“上传图片 -> Python 检测 -> 生成标注图”的基础链路；接下来应把方案收敛为“保留标注图、丢弃 crop 持久化、让 AI 基于 crop 输出严格 JSON、后端汇总为结构化评分结果，并让小程序按识别中 / AI 打分中 / 已完成三个关键阶段及时展示”。
+当前 `POST /durians/analyze` 已经完成从“同步检测半成品接口”到“异步任务编排接口”的改造：请求会快速返回任务 ID，后台完成 Python 检测、标注图生成、crop 驱动的 AI 结构化评分与最终推荐汇总，小程序则按 `PENDING / DETECTING / SCORING / DONE / FAILED` 阶段逐步展示识别与评分结果。

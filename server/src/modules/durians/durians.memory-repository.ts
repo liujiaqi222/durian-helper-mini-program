@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { Injectable } from '@nestjs/common';
 import type {
   AnalysisTask,
+  ReplaceAnalysisTaskItemsInput,
   AnalysisTaskWithItems,
   CreateAnalysisTaskInput,
   DurianAnalysisRepository,
@@ -18,9 +19,11 @@ export class InMemoryDurianAnalysisRepository implements DurianAnalysisRepositor
       sourceImagePath: input.sourceImagePath ?? null,
       sourceImageUrl: input.sourceImageUrl,
       annotatedImageUrl: null,
+      detectedCount: 0,
+      detectedLabels: [],
       status: 'PENDING',
       errorMessage: null,
-      aiSummary: null,
+      overallSummary: null,
       recommendedLabel: null,
       rawResult: null,
       items: [],
@@ -49,6 +52,24 @@ export class InMemoryDurianAnalysisRepository implements DurianAnalysisRepositor
     });
   }
 
+  replaceTaskItems(input: ReplaceAnalysisTaskItemsInput): Promise<void> {
+    const task = this.tasks.get(input.taskId);
+    if (!task) {
+      return Promise.resolve();
+    }
+
+    this.tasks.set(input.taskId, {
+      ...task,
+      items: input.items.map((item, index) => ({
+        ...item,
+        id: `${input.taskId}_item_${index + 1}`,
+        taskId: input.taskId,
+      })),
+      updatedAt: new Date(),
+    });
+    return Promise.resolve();
+  }
+
   updateTask(
     id: string,
     patch: Partial<AnalysisTask>,
@@ -72,6 +93,7 @@ export class InMemoryDurianAnalysisRepository implements DurianAnalysisRepositor
   private cloneTask(task: AnalysisTask): AnalysisTask {
     return {
       ...task,
+      detectedLabels: [...task.detectedLabels],
       createdAt: new Date(task.createdAt),
       updatedAt: new Date(task.updatedAt),
     };

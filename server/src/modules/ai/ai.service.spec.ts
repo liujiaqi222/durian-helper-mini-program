@@ -35,11 +35,7 @@ describe('AiService', () => {
     );
   });
 
-  it('logs model invocation and output summary', async () => {
-    generateTextMock.mockResolvedValue({
-      text: 'looks ready for cv analysis',
-    } as Awaited<ReturnType<typeof generateText>>);
-
+  function createService(configOverrides?: Record<string, string | undefined>) {
     const logger = {
       log: jest.fn(),
       warn: jest.fn(),
@@ -47,62 +43,78 @@ describe('AiService', () => {
     } as unknown as LoggerService;
     const config = {
       get: jest.fn((key: string) => {
-        switch (key) {
-          case 'ai.apiKey':
-            return 'test-key';
-          case 'ai.baseUrl':
-            return 'https://example.com';
-          case 'ai.model':
-            return 'doubao-seed-2.0-pro';
-          default:
-            return undefined;
-        }
+        const defaults: Record<string, string | undefined> = {
+          'ai.apiKey': 'test-key',
+          'ai.baseUrl': 'https://example.com',
+          'ai.model': 'doubao-seed-2.0-pro',
+        };
+
+        return { ...defaults, ...configOverrides }[key];
       }),
     } as unknown as ConfigService;
 
-    const service = new AiService(config, logger);
-    const result = await service.summarizeDurianContext({
-      imageUrl: 'http://127.0.0.1:3000/uploads/task.jpg',
-    });
+    return {
+      logger,
+      service: new AiService(config, logger),
+    };
+  }
 
-    expect(result).toBe('looks ready for cv analysis');
+  it('parses strict JSON scoring results and ranks buy priority', async () => {
+    generateTextMock.mockResolvedValueOnce({
+      text: JSON.stringify({
+        label: 'A',
+        score: 91,
+        summary: '编号 A 更适合买。',
+        reasons: ['外形完整', '果刺分布均匀'],
+        risks: ['仅凭图片无法判断内部状态'],
+      }),
+    } as Awaited<ReturnType<typeof generateText>>);
+
+    const { service, logger } = createService();
+    const result = await service.scoreDurians([
+      {
+        bbox: { x1: 10, x2: 100, y1: 20, y2: 120 },
+        confidence: 0.91,
+        cropImageBase64: 'ZmFrZS1jcm9w',
+        imageUrl: 'http://127.0.0.1:3000/uploads/task.jpg',
+        label: 'A',
+      },
+    ]);
+
+    expect(result.recommendedLabel).toBe('A');
+    expect(result.items[0].buyPriority).toBe(1);
+    expect(result.overallSummary).toContain('A');
     expect((logger.log as jest.Mock).mock.calls).toEqual(
       expect.arrayContaining([
-        [expect.stringContaining('Generating durian AI summary'), 'AiService'],
-        [expect.stringContaining('AI summary generated'), 'AiService'],
+        [expect.stringContaining('Generating durian score'), 'AiService'],
       ]),
     );
   });
 
   it('uses bearer auth token for Ark requests', async () => {
     generateTextMock.mockResolvedValue({
-      text: 'looks ready for cv analysis',
+      text: JSON.stringify({
+        label: 'A',
+        score: 88,
+        summary: '编号 A 可购买。',
+        reasons: ['果形较饱满', '成熟度较合适'],
+        risks: [],
+      }),
     } as Awaited<ReturnType<typeof generateText>>);
 
-    const logger = {
-      log: jest.fn(),
-      warn: jest.fn(),
-      error: jest.fn(),
-    } as unknown as LoggerService;
-    const config = {
-      get: jest.fn((key: string) => {
-        switch (key) {
-          case 'ai.apiKey':
-            return 'test-key';
-          case 'ai.baseUrl':
-            return 'https://ark.cn-beijing.volces.com/api/coding';
-          case 'ai.model':
-            return 'doubao-seed-2.0-lite';
-          default:
-            return undefined;
-        }
-      }),
-    } as unknown as ConfigService;
-
-    const service = new AiService(config, logger);
-    await service.summarizeDurianContext({
-      imageUrl: 'http://127.0.0.1:3000/uploads/task.jpg',
+    const { service } = createService({
+      'ai.baseUrl': 'https://ark.cn-beijing.volces.com/api/coding',
+      'ai.model': 'doubao-seed-2.0-lite',
     });
+    await service.scoreDurians([
+      {
+        bbox: { x1: 10, x2: 100, y1: 20, y2: 120 },
+        confidence: 0.88,
+        cropImageBase64: 'ZmFrZS1jcm9w',
+        imageUrl: 'http://127.0.0.1:3000/uploads/task.jpg',
+        label: 'A',
+      },
+    ]);
 
     expect(createAnthropicMock).toHaveBeenCalledWith({
       authToken: 'test-key',
@@ -110,37 +122,29 @@ describe('AiService', () => {
     });
   });
 
-  it('sends uploaded local images as multimodal content instead of localhost url text', async () => {
+  it('sends uploaded local images and crop images as multimodal content', async () => {
     readFileMock.mockResolvedValue(Buffer.from('fake-image'));
     generateTextMock.mockResolvedValue({
-      text: 'ripe durian image received',
+      text: JSON.stringify({
+        label: 'A',
+        score: 90,
+        summary: '编号 A 外观较好。',
+        reasons: ['果形完整', '纹理清晰'],
+        risks: ['仅凭图片无法判断内部状态'],
+      }),
     } as Awaited<ReturnType<typeof generateText>>);
 
-    const logger = {
-      log: jest.fn(),
-      warn: jest.fn(),
-      error: jest.fn(),
-    } as unknown as LoggerService;
-    const config = {
-      get: jest.fn((key: string) => {
-        switch (key) {
-          case 'ai.apiKey':
-            return 'test-key';
-          case 'ai.baseUrl':
-            return 'https://ark.cn-beijing.volces.com/api/coding';
-          case 'ai.model':
-            return 'doubao-seed-2.0-lite';
-          default:
-            return undefined;
-        }
-      }),
-    } as unknown as ConfigService;
-
-    const service = new AiService(config, logger);
-    await service.summarizeDurianContext({
-      imagePath: '/tmp/uploads/task.jpg',
-      imageUrl: 'http://127.0.0.1:3000/uploads/task.jpg',
-    });
+    const { service } = createService();
+    await service.scoreDurians([
+      {
+        bbox: { x1: 10, x2: 100, y1: 20, y2: 120 },
+        confidence: 0.9,
+        cropImageBase64: 'ZmFrZS1jcm9w',
+        imagePath: '/tmp/uploads/task.jpg',
+        imageUrl: 'http://127.0.0.1:3000/uploads/task.jpg',
+        label: 'A',
+      },
+    ]);
 
     expect(readFileMock).toHaveBeenCalledWith('/tmp/uploads/task.jpg');
     expect(generateTextMock).toHaveBeenCalledWith(
@@ -149,18 +153,44 @@ describe('AiService', () => {
           {
             role: 'user',
             content: [
-              expect.objectContaining({
-                type: 'text',
-              }),
+              expect.objectContaining({ type: 'text' }),
               {
                 type: 'image',
                 image: Buffer.from('fake-image'),
                 mediaType: 'image/jpeg',
               },
+              {
+                type: 'image',
+                image: Buffer.from('fake-crop'),
+                mediaType: 'image/png',
+              },
             ],
           },
         ],
       }),
+    );
+  });
+
+  it('falls back to heuristic scoring when ai api key is missing', async () => {
+    const { service, logger } = createService({
+      'ai.apiKey': undefined,
+    });
+
+    const result = await service.scoreDurians([
+      {
+        bbox: { x1: 10, x2: 100, y1: 20, y2: 120 },
+        confidence: 0.82,
+        cropImageBase64: null,
+        imageUrl: 'http://127.0.0.1:3000/uploads/task.jpg',
+        label: 'A',
+      },
+    ]);
+
+    expect(result.items[0].score).toBe(82);
+    expect(result.recommendedLabel).toBe('A');
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('heuristic durian scoring'),
+      'AiService',
     );
   });
 });

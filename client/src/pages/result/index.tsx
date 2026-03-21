@@ -11,10 +11,12 @@ const MAX_POLL_ATTEMPTS = 40
 export default function ResultPage() {
   const taskId = useAnalysisStore((state) => state.taskId)
   const taskStatus = useAnalysisStore((state) => state.taskStatus)
+  const taskDetail = useAnalysisStore((state) => state.taskDetail)
   const localImagePath = useAnalysisStore((state) => state.localImagePath)
   const result = useAnalysisStore((state) => state.result)
   const errorMessage = useAnalysisStore((state) => state.errorMessage)
   const setTaskStatus = useAnalysisStore((state) => state.setTaskStatus)
+  const setTaskDetail = useAnalysisStore((state) => state.setTaskDetail)
   const setResult = useAnalysisStore((state) => state.setResult)
   const setErrorMessage = useAnalysisStore((state) => state.setErrorMessage)
   const clearErrorMessage = useAnalysisStore((state) => state.clearErrorMessage)
@@ -55,6 +57,7 @@ export default function ResultPage() {
     try {
       clearErrorMessage()
       const nextTask = await getAnalysisTask(taskId)
+      setTaskDetail(nextTask)
       setTaskStatus(nextTask.status)
 
       if (nextTask.status === 'DONE') {
@@ -140,6 +143,8 @@ export default function ResultPage() {
 
   const statusText = taskStatus ? getStatusDescription(taskStatus) : '正在准备结果页'
   const previewImage = result?.sourceImageUrl || localImagePath
+  const annotatedImageUrl = result?.annotatedImageUrl || taskDetail?.annotatedImageUrl || null
+  const detectingLabels = result?.items.map((item) => item.label) || taskDetail?.detectedLabels || []
 
   return (
     <View className='min-h-screen bg-gradient-to-b from-[#f8f1e6] to-[#efe4d1] px-6 py-6 text-[#2e2017]'>
@@ -157,10 +162,10 @@ export default function ResultPage() {
           </View>
         ) : null}
 
-        {result?.annotatedImageUrl ? (
+        {annotatedImageUrl ? (
           <View className='flex flex-col gap-3 rounded-[22px] bg-[#fffbf4]/90 p-5 shadow-[0_14px_35px_rgba(92,63,36,0.08)]'>
             <Text className='text-[22px] font-bold leading-[1.4] text-[#2e2017]'>编号标注图</Text>
-            <Image className='w-full overflow-hidden rounded-[18px]' mode='widthFix' src={result.annotatedImageUrl} />
+            <Image className='w-full overflow-hidden rounded-[18px]' mode='widthFix' src={annotatedImageUrl} />
           </View>
         ) : null}
 
@@ -168,6 +173,16 @@ export default function ResultPage() {
           <View className='flex flex-col gap-3 rounded-[22px] bg-[#fffbf4]/90 p-5 shadow-[0_14px_35px_rgba(92,63,36,0.08)]'>
             <Text className='text-[22px] font-bold leading-[1.4] text-[#2e2017]'>分析进行中</Text>
             <Text className='text-[14px] leading-[1.7] text-[#4d3d31]'>请稍等，结果页会自动刷新当前任务状态。</Text>
+            {taskDetail?.detectedCount ? (
+              <Text className='text-[14px] leading-[1.7] text-[#6d4c2f]'>
+                已识别 {taskDetail.detectedCount} 个榴莲：{detectingLabels.join('、')}
+              </Text>
+            ) : null}
+            {taskStatus === 'SCORING' && annotatedImageUrl ? (
+              <Text className='text-[14px] leading-[1.7] text-[#6d4c2f]'>
+                已完成榴莲编号，正在为 {detectingLabels.join('、') || '当前榴莲'} 生成评分。
+              </Text>
+            ) : null}
           </View>
         ) : null}
 
@@ -179,15 +194,15 @@ export default function ResultPage() {
               {recommendedItem.score !== null ? `${recommendedItem.score} 分` : '暂无分数'}
             </Text>
             <Text className='mt-3 text-[14px] leading-[1.6] text-[#4d3d31]'>
-              {recommendedItem.summary || result?.aiSummary || '后端暂未返回推荐摘要'}
+              {recommendedItem.summary || result?.overallSummary || '后端暂未返回推荐摘要'}
             </Text>
           </View>
         ) : null}
 
-        {result?.aiSummary ? (
+        {result?.overallSummary ? (
           <View className='flex flex-col gap-3 rounded-[22px] bg-[#fffbf4]/90 p-5 shadow-[0_14px_35px_rgba(92,63,36,0.08)]'>
             <Text className='text-[22px] font-bold leading-[1.4] text-[#2e2017]'>整体说明</Text>
-            <Text className='text-[14px] leading-[1.7] text-[#4d3d31]'>{result.aiSummary}</Text>
+            <Text className='text-[14px] leading-[1.7] text-[#4d3d31]'>{result.overallSummary}</Text>
           </View>
         ) : null}
 
@@ -204,11 +219,10 @@ export default function ResultPage() {
                     </Text>
                   </View>
 
-                  {item.cropImageUrl ? (
-                    <Image className='h-[220px] w-full rounded-[16px]' mode='aspectFill' src={item.cropImageUrl} />
-                  ) : null}
-
                   {item.summary ? <Text className='text-[14px] leading-[1.7] text-[#4d3d31]'>{item.summary}</Text> : null}
+                  <Text className='text-[13px] leading-[1.7] text-[#87674c]'>
+                    检测置信度：{Math.round(item.confidence * 100)}%，位置：({item.bbox.x1}, {item.bbox.y1}) - ({item.bbox.x2}, {item.bbox.y2})
+                  </Text>
                   {item.buyPriority !== null ? (
                     <Text className='text-[14px] leading-[1.7] text-[#87674c]'>购买优先级：{item.buyPriority}</Text>
                   ) : null}
