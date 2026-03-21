@@ -13,7 +13,11 @@ async function bootstrap() {
   });
 
   app.useLogger(app.get(LoggerService));
-  app.use(helmet());
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
   app.enableCors();
   app.setGlobalPrefix('api/v1');
   const uploadsDir = join(process.cwd(), 'uploads');

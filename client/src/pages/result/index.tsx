@@ -1,4 +1,4 @@
-import { Button, Image, Text, View } from '@tarojs/components'
+import { Image, Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useEffect, useRef, useState } from 'react'
 import { getAnalysisResult, getAnalysisTask, retryAnalysisTask } from '../../services/api'
@@ -287,21 +287,24 @@ export default function ResultPage() {
 
         <View className='flex flex-col gap-3 mt-4'>
           {taskStatus === 'FAILED' ? (
-            <Button
-              className='w-full rounded-2xl bg-amber-500 text-base font-bold text-white shadow-md border-none after:border-none'
-              loading={isRetrying}
-              onClick={handleRetry}
+            <View
+              className={`flex w-full items-center justify-center rounded-2xl py-3 text-base font-bold transition-all ${
+                isRetrying
+                  ? 'bg-amber-300 text-white opacity-70 cursor-not-allowed'
+                  : 'bg-amber-500 text-white shadow-sm active:scale-95 active:bg-amber-600'
+              }`}
+              onClick={isRetrying ? undefined : handleRetry}
             >
-              重试分析任务
-            </Button>
+              <Text>{isRetrying ? '重试中...' : '重试分析任务'}</Text>
+            </View>
           ) : null}
 
-          <Button
-            className='w-full rounded-2xl bg-white text-base font-bold text-amber-700 border border-amber-200 shadow-sm after:border-none'
+          <View
+            className='flex w-full items-center justify-center rounded-2xl border border-amber-200 bg-white py-3 text-base font-bold text-amber-700 shadow-sm transition-all active:scale-95 active:bg-amber-50'
             onClick={handleRestart}
           >
-            返回首页，重新鉴定
-          </Button>
+            <Text>返回首页，重新挑选</Text>
+          </View>
         </View>
       </View>
     </View>

@@ -1,4 +1,4 @@
-import { Button, Image, Text, View } from '@tarojs/components'
+import { Image, Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useState } from 'react'
 import { createAnalysisTask } from '../../services/api'
@@ -86,7 +86,7 @@ export default function Index() {
 
         {/* Action Section */}
         <View className='flex flex-col gap-4 rounded-3xl bg-white p-6 shadow-sm border border-yellow-100'>
-          <Text className='text-lg font-bold text-gray-900'>开始鉴定</Text>
+          <Text className='text-lg font-bold text-gray-900'>开始挑选</Text>
 
           {localImagePath ? (
             <View className='w-full overflow-hidden rounded-2xl bg-gray-50 ring-1 ring-gray-100'>
@@ -103,33 +103,39 @@ export default function Index() {
           )}
 
           <View className='flex flex-col gap-3 mt-2'>
-            <Button
-              className={`w-full rounded-2xl bg-amber-500 text-base font-bold text-white shadow-md border-none after:border-none ${
-                !localImagePath || isSubmitting ? 'opacity-50 grayscale' : ''
+            <View
+              className={`flex w-full items-center justify-center rounded-2xl py-3 text-base font-bold transition-all ${
+                !localImagePath || isSubmitting
+                  ? 'bg-amber-300 text-white opacity-70 cursor-not-allowed'
+                  : 'bg-amber-500 text-white shadow-sm active:scale-95 active:bg-amber-600'
               }`}
-              disabled={!localImagePath || isSubmitting}
-              loading={isSubmitting}
-              onClick={handleStartAnalysis}
+              onClick={(!localImagePath || isSubmitting) ? undefined : handleStartAnalysis}
             >
-              {isSubmitting ? '分析中...' : '立即开始鉴定'}
-            </Button>
+              <Text>{isSubmitting ? '分析中...' : '立即开始挑选'}</Text>
+            </View>
 
             {localImagePath ? (
               <View className='flex gap-3'>
-                <Button
-                  className='flex-1 rounded-2xl bg-amber-50 text-sm font-medium text-amber-700 border-none after:border-none'
-                  onClick={handleChooseImage}
-                  disabled={isSubmitting}
+                <View
+                  className={`flex flex-1 items-center justify-center rounded-2xl py-3 text-sm font-medium transition-all ${
+                    isSubmitting
+                      ? 'bg-amber-50/50 text-amber-700/50 cursor-not-allowed'
+                      : 'bg-amber-50 text-amber-700 active:scale-95 active:bg-amber-100'
+                  }`}
+                  onClick={isSubmitting ? undefined : handleChooseImage}
                 >
-                  重新选择图片
-                </Button>
-                <Button
-                  className='flex-1 rounded-2xl bg-gray-50 text-sm font-medium text-gray-600 border-none after:border-none'
-                  onClick={handleReset}
-                  disabled={isSubmitting}
+                  <Text>重新选择图片</Text>
+                </View>
+                <View
+                  className={`flex flex-1 items-center justify-center rounded-2xl py-3 text-sm font-medium transition-all ${
+                    isSubmitting
+                      ? 'bg-gray-50/50 text-gray-600/50 cursor-not-allowed'
+                      : 'bg-gray-50 text-gray-600 active:scale-95 active:bg-gray-100'
+                  }`}
+                  onClick={isSubmitting ? undefined : handleReset}
                 >
-                  清空当前进度
-                </Button>
+                  <Text>清空当前进度</Text>
+                </View>
               </View>
             ) : null}
           </View>
