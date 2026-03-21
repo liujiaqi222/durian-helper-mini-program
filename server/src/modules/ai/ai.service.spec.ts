@@ -146,7 +146,7 @@ describe('AiService', () => {
       },
     ]);
 
-    expect(readFileMock).toHaveBeenCalledWith('/tmp/uploads/task.jpg');
+    expect(readFileMock).not.toHaveBeenCalled();
     expect(generateTextMock).toHaveBeenCalledWith(
       expect.objectContaining({
         messages: [
@@ -154,11 +154,6 @@ describe('AiService', () => {
             role: 'user',
             content: [
               expect.objectContaining({ type: 'text' }),
-              {
-                type: 'image',
-                image: Buffer.from('fake-image'),
-                mediaType: 'image/jpeg',
-              },
               {
                 type: 'image',
                 image: Buffer.from('fake-crop'),
@@ -192,5 +187,84 @@ describe('AiService', () => {
       expect.stringContaining('heuristic durian scoring'),
       'AiService',
     );
+  });
+
+  it('falls back to the source image when crop image is missing', async () => {
+    readFileMock.mockResolvedValue(Buffer.from('fake-image'));
+    generateTextMock.mockResolvedValue({
+      text: JSON.stringify({
+        label: 'A',
+        score: 85,
+        summary: '编号 A 可购买。',
+        reasons: ['果形较饱满', '纹理较清晰'],
+        risks: [],
+      }),
+    } as Awaited<ReturnType<typeof generateText>>);
+
+    const { service } = createService();
+    await service.scoreDurians([
+      {
+        bbox: { x1: 10, x2: 100, y1: 20, y2: 120 },
+        confidence: 0.85,
+        cropImageBase64: null,
+        imagePath: '/tmp/uploads/task.jpg',
+        imageUrl: 'http://127.0.0.1:3000/uploads/task.jpg',
+        label: 'A',
+      },
+    ]);
+
+    expect(readFileMock).toHaveBeenCalledWith('/tmp/uploads/task.jpg');
+    expect(generateTextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: [
+          {
+            role: 'user',
+            content: [
+              expect.objectContaining({ type: 'text' }),
+              {
+                type: 'image',
+                image: Buffer.from('fake-image'),
+                mediaType: 'image/jpeg',
+              },
+            ],
+          },
+        ],
+      }),
+    );
+  });
+
+  it('falls back to heuristic scoring when ai generation times out', async () => {
+    jest.useFakeTimers();
+    generateTextMock.mockImplementation(
+      () =>
+        new Promise(() => {
+          // Intentionally unresolved to simulate a hanging model call.
+        }) as ReturnType<typeof generateText>,
+    );
+
+    const { service, logger } = createService({
+      'ai.timeoutMs': '5',
+    });
+
+    const resultPromise = service.scoreDurians([
+      {
+        bbox: { x1: 10, x2: 100, y1: 20, y2: 120 },
+        confidence: 0.82,
+        cropImageBase64: 'ZmFrZS1jcm9w',
+        imageUrl: 'http://127.0.0.1:3000/uploads/task.jpg',
+        label: 'A',
+      },
+    ]);
+
+    await jest.advanceTimersByTimeAsync(5);
+    const result = await resultPromise;
+
+    expect(result.items[0].score).toBe(82);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('AI scoring failed'),
+      'AiService',
+    );
+
+    jest.useRealTimers();
   });
 });

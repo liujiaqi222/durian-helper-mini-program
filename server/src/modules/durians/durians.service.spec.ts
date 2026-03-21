@@ -170,6 +170,19 @@ describe('DuriansService', () => {
     expect(storedTask.detectedLabels).toEqual(['A']);
     expect(storedTask.overallSummary).toBe('A 综合表现最好。');
     expect(storedTask.recommendedLabel).toBe('A');
+    expect(storedTask.rawResult).toEqual({
+      annotatedImageUrl: 'http://localhost:3000/uploads/annotated-task_1.jpg',
+      count: 1,
+      items: [
+        {
+          bbox: { x1: 10, x2: 100, y1: 20, y2: 120 },
+          class_name: 'durian',
+          confidence: 0.92,
+          label: 'A',
+        },
+      ],
+      message: null,
+    });
     expect(cvService.detectAndAnnotate).toHaveBeenCalledWith({
       imagePath: undefined,
       imageUrl: 'https://example.com/durian.png',

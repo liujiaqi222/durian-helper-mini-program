@@ -144,7 +144,7 @@ export class DuriansService {
         annotatedImageUrl: detectionResult.annotatedImageUrl,
         detectedCount: detectionResult.count,
         detectedLabels,
-        rawResult: detectionResult as unknown as Record<string, unknown>,
+        rawResult: this.buildPersistedRawResult(detectionResult),
         status: 'SCORING',
       });
       this.logger.log(
@@ -224,5 +224,21 @@ export class DuriansService {
         status: 'FAILED',
       });
     }
+  }
+
+  private buildPersistedRawResult(
+    detectionResult: Awaited<ReturnType<CvService['detectAndAnnotate']>>,
+  ): Record<string, unknown> {
+    return {
+      annotatedImageUrl: detectionResult.annotatedImageUrl,
+      count: detectionResult.count,
+      items: detectionResult.items.map((item) => ({
+        bbox: item.bbox,
+        class_name: item.class_name,
+        confidence: item.confidence,
+        label: item.label,
+      })),
+      message: detectionResult.message ?? null,
+    };
   }
 }

@@ -14,6 +14,7 @@ const IMAGE_MEDIA_TYPE_BY_EXTENSION: Record<string, string> = {
   '.png': 'image/png',
   '.webp': 'image/webp',
 };
+const DEFAULT_AI_REQUEST_TIMEOUT_MS = 15_000;
 
 const durianScoreSchema = z.object({
   label: z.string().min(1),
@@ -71,31 +72,51 @@ export class AiService {
       authToken: apiKey,
       baseURL: this.configService.get<string>('ai.baseUrl'),
     });
+    const timeoutMs = Number(
+      this.configService.get<string>('ai.timeoutMs') ??
+        DEFAULT_AI_REQUEST_TIMEOUT_MS,
+    );
 
     const scoredItems: DurianScore[] = [];
 
-    for (const item of items) {
-      this.logger.log(
-        `Generating durian score ${JSON.stringify({
-          imagePath: item.imagePath ?? null,
-          imageUrl: item.imageUrl,
-          label: item.label,
-          model: modelId,
+    try {
+      for (const item of items) {
+        this.logger.log(
+          `Generating durian score ${JSON.stringify({
+            hasCropImage: Boolean(item.cropImageBase64),
+            imagePath: item.imagePath ?? null,
+            imageUrl: item.imageUrl,
+            label: item.label,
+            model: modelId,
+            timeoutMs,
+          })}`,
+          'AiService',
+        );
+
+        const result = await this.generateScoreWithTimeout(
+          {
+            model: anthropic(modelId),
+            messages: [
+              {
+                role: 'user',
+                content: await this.buildScoringContent(item),
+              },
+            ],
+            maxOutputTokens: 320,
+          },
+          timeoutMs,
+        );
+        scoredItems.push(this.parseScoreResult(item.label, result.text));
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Falling back to heuristic durian scoring because AI scoring failed ${JSON.stringify({
+          error: error instanceof Error ? error.message : 'unknown error',
+          labels: items.map((item) => item.label),
         })}`,
         'AiService',
       );
-
-      const result = await generateText({
-        model: anthropic(modelId),
-        messages: [
-          {
-            role: 'user',
-            content: await this.buildScoringContent(item),
-          },
-        ],
-        maxOutputTokens: 320,
-      });
-      scoredItems.push(this.parseScoreResult(item.label, result.text));
+      return this.buildHeuristicScores(items);
     }
 
     return this.finalizeScores(scoredItems);
@@ -116,7 +137,7 @@ export class AiService {
       {
         type: 'text',
         text: [
-          `You are rating durian ${input.label} from a shelf photo.`,
+          `You are rating durian ${input.label} from a crop image.`,
           `Detection confidence: ${input.confidence}.`,
           `Bounding box: (${input.bbox.x1}, ${input.bbox.y1}) to (${input.bbox.x2}, ${input.bbox.y2}).`,
           'Return strict JSON with fields: label, score, summary, reasons, risks.',
@@ -130,6 +151,15 @@ export class AiService {
       },
     ];
 
+    if (input.cropImageBase64) {
+      parts.push({
+        type: 'image',
+        image: Buffer.from(input.cropImageBase64, 'base64'),
+        mediaType: 'image/png',
+      });
+      return parts;
+    }
+
     if (input.imagePath) {
       parts.push({
         type: 'image',
@@ -140,14 +170,6 @@ export class AiService {
       parts.push({
         type: 'image',
         image: input.imageUrl,
-      });
-    }
-
-    if (input.cropImageBase64) {
-      parts.push({
-        type: 'image',
-        image: Buffer.from(input.cropImageBase64, 'base64'),
-        mediaType: 'image/png',
       });
     }
 
@@ -216,5 +238,19 @@ export class AiService {
       IMAGE_MEDIA_TYPE_BY_EXTENSION[extname(filePath).toLowerCase()] ||
       'image/jpeg'
     );
+  }
+
+  private async generateScoreWithTimeout(
+    input: Parameters<typeof generateText>[0],
+    timeoutMs: number,
+  ): Promise<Awaited<ReturnType<typeof generateText>>> {
+    return Promise.race([
+      generateText(input),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error(`AI scoring timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+      }),
+    ]);
   }
 }

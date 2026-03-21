@@ -142,8 +142,8 @@ export default function ResultPage() {
   }
 
   const statusText = taskStatus ? getStatusDescription(taskStatus) : '正在准备结果页'
-  const previewImage = result?.sourceImageUrl || localImagePath
   const annotatedImageUrl = result?.annotatedImageUrl || taskDetail?.annotatedImageUrl || null
+  const previewImage = annotatedImageUrl || result?.sourceImageUrl || localImagePath
   const detectingLabels = result?.items.map((item) => item.label) || taskDetail?.detectedLabels || []
 
   return (
@@ -157,15 +157,17 @@ export default function ResultPage() {
 
         {previewImage ? (
           <View className='flex flex-col gap-3 rounded-[22px] bg-[#fffbf4]/90 p-5 shadow-[0_14px_35px_rgba(92,63,36,0.08)]'>
-            <Text className='text-[22px] font-bold leading-[1.4] text-[#2e2017]'>原图</Text>
+            <Text className='text-[22px] font-bold leading-[1.4] text-[#2e2017]'>
+              {annotatedImageUrl ? '编号标注图' : '原图'}
+            </Text>
             <Image className='w-full overflow-hidden rounded-[18px]' mode='widthFix' src={previewImage} />
           </View>
         ) : null}
 
-        {annotatedImageUrl ? (
+        {annotatedImageUrl && localImagePath ? (
           <View className='flex flex-col gap-3 rounded-[22px] bg-[#fffbf4]/90 p-5 shadow-[0_14px_35px_rgba(92,63,36,0.08)]'>
-            <Text className='text-[22px] font-bold leading-[1.4] text-[#2e2017]'>编号标注图</Text>
-            <Image className='w-full overflow-hidden rounded-[18px]' mode='widthFix' src={annotatedImageUrl} />
+            <Text className='text-[22px] font-bold leading-[1.4] text-[#2e2017]'>原图</Text>
+            <Image className='w-full overflow-hidden rounded-[18px]' mode='widthFix' src={localImagePath} />
           </View>
         ) : null}
 
