@@ -14,24 +14,35 @@ export interface AnalysisTask {
   id: string
   sourceImagePath: string | null
   sourceImageUrl: string
-  annotatedImageUrl: string | null
   detectedCount: number
   detectedLabels: string[]
   status: AnalysisTaskStatus
   errorMessage: string | null
   overallSummary: string | null
   recommendedLabel: string | null
+  rawResult: AnalysisTaskRawResult | null
 }
 
-export interface AnalysisTaskItem {
-  bbox: {
-    x1: number
-    x2: number
-    y1: number
-    y2: number
-  }
+export interface AnalysisBoundingBox {
+  x1: number
+  x2: number
+  y1: number
+  y2: number
+}
+
+export interface AnalysisTaskDetectionItem {
+  bbox: AnalysisBoundingBox
   confidence: number
   label: string
+}
+
+export interface AnalysisTaskRawResult {
+  count: number
+  items: AnalysisTaskDetectionItem[]
+  message?: string | null
+}
+
+export interface AnalysisTaskItem extends AnalysisTaskDetectionItem {
   score: number | null
   summary: string | null
   reasons: string[] | null
@@ -41,7 +52,6 @@ export interface AnalysisTaskItem {
 
 export interface AnalysisResult {
   sourceImageUrl: string
-  annotatedImageUrl: string | null
   recommendedLabel: string | null
   overallSummary: string | null
   items: AnalysisTaskItem[]

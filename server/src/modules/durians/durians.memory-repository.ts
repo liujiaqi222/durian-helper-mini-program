@@ -18,7 +18,6 @@ export class InMemoryDurianAnalysisRepository implements DurianAnalysisRepositor
       id: randomUUID(),
       sourceImagePath: input.sourceImagePath ?? null,
       sourceImageUrl: input.sourceImageUrl,
-      annotatedImageUrl: null,
       detectedCount: 0,
       detectedLabels: [],
       status: 'PENDING',

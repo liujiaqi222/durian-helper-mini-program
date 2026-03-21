@@ -1,6 +1,5 @@
 import { ConfigService } from '@nestjs/config';
 import { LoggerService } from '../../core/logger/logger.service';
-import { UploadsService } from '../uploads/uploads.service';
 import { CvService } from './cv.service';
 
 describe('CvService', () => {
@@ -15,7 +14,6 @@ describe('CvService', () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        annotated_image_base64: 'ZmFrZQ==',
         count: 1,
         items: [
           {
@@ -30,14 +28,6 @@ describe('CvService', () => {
       }),
     }) as typeof fetch;
 
-    const uploadsService = {
-      storeBase64Image: jest
-        .fn()
-        .mockResolvedValueOnce({
-          filePath: '/uploads/task_1-annotated.jpg',
-          fileUrl: 'http://127.0.0.1:3000/uploads/task_1-annotated.jpg',
-        }),
-    } as unknown as UploadsService;
     const config = {
       get: jest.fn((key: string) =>
         key === 'cvService.baseUrl' ? 'http://127.0.0.1:8010' : undefined,
@@ -49,15 +39,12 @@ describe('CvService', () => {
       error: jest.fn(),
     } as unknown as LoggerService;
 
-    const service = new CvService(config, uploadsService, logger);
+    const service = new CvService(config, logger);
     const result = await service.detectAndAnnotate({
       imageUrl: 'http://127.0.0.1:3000/uploads/task_1.jpg',
       taskId: 'task_1',
     });
 
-    expect(result.annotatedImageUrl).toBe(
-      '/uploads/task_1-annotated.jpg',
-    );
     expect(result.items).toEqual([
       {
         bbox: { x1: 1, x2: 2, y1: 3, y2: 4 },
@@ -67,7 +54,6 @@ describe('CvService', () => {
         label: 'A',
       },
     ]);
-    expect(uploadsService.storeBase64Image).toHaveBeenCalledTimes(1);
     expect((logger.log as jest.Mock).mock.calls).toEqual(
       expect.arrayContaining([
         [

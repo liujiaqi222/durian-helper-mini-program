@@ -3,6 +3,7 @@ import Taro from '@tarojs/taro'
 import { useEffect, useRef, useState } from 'react'
 import { getAnalysisResult, getAnalysisTask, retryAnalysisTask } from '../../services/api'
 import { useAnalysisStore } from '../../store/analysis'
+import type { AnalysisTaskDetectionItem } from '../../types/analysis'
 import {
   findRecommendedItem,
   getStatusDescription,
@@ -15,6 +16,8 @@ const POLL_INTERVAL = 1500
 const MAX_POLL_ATTEMPTS = 40
 
 export default function ResultPage() {
+  const defaultOverlayColor = '#4B5563'
+
   const taskId = useAnalysisStore((state) => state.taskId)
   const taskStatus = useAnalysisStore((state) => state.taskStatus)
   const taskDetail = useAnalysisStore((state) => state.taskDetail)
@@ -28,12 +31,14 @@ export default function ResultPage() {
   const clearErrorMessage = useAnalysisStore((state) => state.clearErrorMessage)
   const resetAnalysis = useAnalysisStore((state) => state.resetAnalysis)
   const [isRetrying, setIsRetrying] = useState(false)
+  const [previewSize, setPreviewSize] = useState<{ width: number; height: number } | null>(null)
   const pollAttemptRef = useRef(0)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isMountedRef = useRef(true)
 
   const recommendedItem = result ? findRecommendedItem(result) : null
   const displayItems = sortItemsForDisplay(result?.items || [])
+  const highlightedLabel = recommendedItem?.label || null
 
   useEffect(() => {
     return () => {
@@ -148,13 +153,46 @@ export default function ResultPage() {
   }
 
   const statusText = taskStatus ? getStatusDescription(taskStatus) : '正在准备结果页配置...'
-  const annotatedImageUrl = result?.annotatedImageUrl || taskDetail?.annotatedImageUrl || null
   const preview = resolveResultPreview({
-    annotatedImageUrl,
     sourceImageUrl: result?.sourceImageUrl || taskDetail?.sourceImageUrl || null,
     localImagePath,
   })
   const detectingLabels = result?.items.map((item) => item.label) || taskDetail?.detectedLabels || []
+  const overlaySourceItems: AnalysisTaskDetectionItem[] = result?.items?.length
+    ? result.items
+    : taskDetail?.rawResult?.items || []
+  const overlayItems = previewSize && overlaySourceItems.length
+    ? overlaySourceItems.map((item) => {
+        const width = previewSize.width || 1
+        const height = previewSize.height || 1
+        const boxWidth = Math.max(item.bbox.x2 - item.bbox.x1, 1)
+        const boxHeight = Math.max(item.bbox.y2 - item.bbox.y1, 1)
+
+        return {
+          heightPercent: (boxHeight / height) * 100,
+          isHighlighted: item.label === highlightedLabel,
+          item,
+          leftPercent: (item.bbox.x1 / width) * 100,
+          topPercent: (item.bbox.y1 / height) * 100,
+          widthPercent: (boxWidth / width) * 100,
+        }
+      })
+    : []
+
+  function handlePreviewLoad(event: { detail?: { width?: number | string; height?: number | string } }) {
+    const width = Number(event.detail?.width)
+    const height = Number(event.detail?.height)
+
+    if (!width || !height) {
+      return
+    }
+
+    setPreviewSize({ width, height })
+  }
+
+  useEffect(() => {
+    setPreviewSize(null)
+  }, [preview?.imageUrl])
 
   return (
     <View className='min-h-screen bg-gradient-to-br from-yellow-50 via-white to-amber-50 px-4 py-6 text-gray-800 pb-12'>
@@ -169,7 +207,48 @@ export default function ResultPage() {
         {preview ? (
           <View className='flex flex-col gap-3 rounded-3xl bg-white p-4 shadow-sm border border-yellow-100'>
             <Text className='px-2 text-lg font-bold text-gray-900'>{preview.title}</Text>
-            <Image className='w-full overflow-hidden rounded-2xl bg-gray-50 ring-1 ring-gray-100' mode='widthFix' src={preview.imageUrl} />
+            <View className='relative overflow-hidden rounded-2xl bg-gray-50 ring-1 ring-gray-100'>
+              <Image
+                className='block w-full'
+                mode='widthFix'
+                onLoad={handlePreviewLoad}
+                src={preview.imageUrl}
+              />
+              {overlayItems.length > 0 ? (
+                <View className='absolute inset-0'>
+                  {overlayItems.map((entry) => (
+                    <View
+                      key={`${entry.item.label}-overlay`}
+                      className='absolute box-border flex items-center justify-center rounded-[18px]'
+                      style={{
+                        border: entry.isHighlighted ? '4px solid #f59e0b' : `2px solid ${defaultOverlayColor}`,
+                        boxShadow: 'none',
+                        left: `${entry.leftPercent}%`,
+                        top: `${entry.topPercent}%`,
+                        width: `${entry.widthPercent}%`,
+                        height: `${entry.heightPercent}%`,
+                      }}
+                    >
+                      <View
+                        className='flex items-center justify-center'
+                        style={{
+                          backgroundColor: 'transparent',
+                        }}
+                      >
+                        <Text
+                          className='text-2xl font-extrabold leading-none'
+                          style={{
+                            color: entry.isHighlighted ? '#f59e0b' : defaultOverlayColor,
+                          }}
+                        >
+                          {entry.item.label}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+            </View>
           </View>
         ) : null}
 
@@ -187,7 +266,7 @@ export default function ResultPage() {
                 </Text>
               </View>
             ) : null}
-            {taskStatus === 'SCORING' && annotatedImageUrl ? (
+            {taskStatus === 'SCORING' && preview ? (
               <View className='mt-1 rounded-xl bg-white/60 p-3'>
                 <Text className='text-sm font-medium text-amber-800'>
                   当前进展：已完成编号，正在为 {detectingLabels.join('、') || '当前目标'} 综合打分...
@@ -224,7 +303,14 @@ export default function ResultPage() {
             <Text className='px-2 text-lg font-bold text-gray-900'>所有榴莲明细</Text>
             <View className='flex flex-col gap-4'>
               {displayItems.map((item) => (
-                <View className='flex flex-col gap-3 rounded-3xl bg-white p-5 shadow-sm border border-yellow-100/50' key={item.label}>
+                <View
+                  className='flex flex-col gap-3 rounded-3xl bg-white p-5 shadow-sm border'
+                  key={item.label}
+                  style={{
+                    borderColor: item.label === highlightedLabel ? '#f59e0b' : 'rgba(254, 243, 199, 0.7)',
+                    boxShadow: item.label === highlightedLabel ? '0 16px 32px rgba(217, 119, 6, 0.12)' : undefined,
+                  }}
+                >
                   <View className='flex items-center justify-between border-b border-gray-100 pb-3'>
                     <View className='flex items-center gap-2'>
                       <Text className='text-xl font-extrabold text-gray-900'>{item.label}</Text>

@@ -91,7 +91,6 @@ export class DrizzleDurianAnalysisRepository implements DurianAnalysisRepository
     const [task] = await this.db
       .update(analysisTasks)
       .set({
-        annotatedImageUrl: patch.annotatedImageUrl,
         detectedCount: patch.detectedCount,
         detectedLabels: patch.detectedLabels,
         errorMessage: patch.errorMessage,
@@ -110,7 +109,6 @@ export class DrizzleDurianAnalysisRepository implements DurianAnalysisRepository
 
   private mapTask(task: typeof analysisTasks.$inferSelect): AnalysisTask {
     return {
-      annotatedImageUrl: task.annotatedImageUrl,
       createdAt: task.createdAt,
       detectedCount: task.detectedCount,
       detectedLabels: Array.isArray(task.detectedLabels)

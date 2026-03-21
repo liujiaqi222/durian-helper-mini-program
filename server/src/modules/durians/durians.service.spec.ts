@@ -20,7 +20,6 @@ class InMemoryDurianAnalysisRepository implements DurianAnalysisRepository {
       id: `task_${this.tasks.size + 1}`,
       sourceImagePath: input.sourceImagePath ?? null,
       sourceImageUrl: input.sourceImageUrl,
-      annotatedImageUrl: null,
       detectedCount: 0,
       detectedLabels: [],
       status: 'PENDING',
@@ -103,7 +102,6 @@ describe('DuriansService', () => {
     repository = new InMemoryDurianAnalysisRepository();
     cvService = {
       detectAndAnnotate: jest.fn().mockResolvedValue({
-        annotatedImageUrl: 'http://localhost:3000/uploads/annotated-task_1.jpg',
         count: 1,
         items: [
           {
@@ -177,16 +175,12 @@ describe('DuriansService', () => {
 
     const storedTask = await service.getAnalysisTask(task.id);
     expect(storedTask.status).toBe('DONE');
-    expect(storedTask.annotatedImageUrl).toBe(
-      'http://localhost:3000/uploads/annotated-task_1.jpg',
-    );
     expect(storedTask.sourceImageUrl).toBe('http://localhost:3000/uploads/durian.png');
     expect(storedTask.detectedCount).toBe(1);
     expect(storedTask.detectedLabels).toEqual(['A']);
     expect(storedTask.overallSummary).toBe('A 综合表现最好。');
     expect(storedTask.recommendedLabel).toBe('A');
     expect(storedTask.rawResult).toEqual({
-      annotatedImageUrl: 'http://localhost:3000/uploads/annotated-task_1.jpg',
       count: 1,
       items: [
         {

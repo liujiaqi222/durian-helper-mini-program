@@ -33,7 +33,7 @@ def test_detect_and_annotate_returns_assets(client, image_bytes):
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["annotated_image_base64"]
+    assert "annotated_image_base64" not in payload
     assert payload["count"] == 2
     assert [item["label"] for item in payload["items"]] == ["A", "B"]
     assert all("bbox" in item for item in payload["items"])

@@ -29,7 +29,6 @@ export interface AnalysisTask {
   id: string;
   sourceImagePath: string | null;
   sourceImageUrl: string;
-  annotatedImageUrl: string | null;
   detectedCount: number;
   detectedLabels: string[];
   status: AnalysisStatus;

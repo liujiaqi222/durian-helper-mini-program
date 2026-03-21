@@ -16,7 +16,7 @@ from urllib.parse import urlparse
 
 import httpx
 from fastapi import HTTPException, UploadFile
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 from ultralytics import YOLO
 
 from app.config import (
@@ -213,19 +213,16 @@ class DurianDetector:
             raw_items, message = self._filter_for_annotation(raw_items)
 
         items = self._assign_labels(raw_items)
-        annotated_image_base64: str | None = None
 
         if include_assets and items:
             if image is None:
                 raise ValueError("image is required when include_assets is True.")
             items = self._attach_crop_images(image, items)
-            annotated_image_base64 = self._encode_image_base64(self._annotate_image(image, items))
 
         return DetectionResponse(
             count=len(items),
             items=items,
             message=message,
-            annotated_image_base64=annotated_image_base64,
         )
 
     def _filter_for_annotation(
@@ -315,29 +312,6 @@ class DurianDetector:
                 ),
             )
         return enriched_items
-
-    def _annotate_image(self, image: Image.Image, items: list[DetectionItem]) -> Image.Image:
-        """Draw bounding boxes and labels on a copy of the original image."""
-        annotated = image.copy()
-        draw = ImageDraw.Draw(annotated)
-        font = ImageFont.load_default()
-
-        for item in items:
-            bbox = item.bbox
-            label_text = f"{item.label} {item.confidence:.2f}"
-            draw.rectangle((bbox.x1, bbox.y1, bbox.x2, bbox.y2), outline="#FF6B00", width=4)
-            text_box = draw.textbbox((0, 0), label_text, font=font)
-            text_width = text_box[2] - text_box[0]
-            text_height = text_box[3] - text_box[1]
-            text_x = bbox.x1
-            text_y = max(0, bbox.y1 - text_height - 8)
-            draw.rectangle(
-                (text_x, text_y, text_x + text_width + 10, text_y + text_height + 8),
-                fill="#FF6B00",
-            )
-            draw.text((text_x + 5, text_y + 4), label_text, fill="white", font=font)
-
-        return annotated
 
     def _encode_image_base64(self, image: Image.Image) -> str:
         """Encode a PIL image to base64 PNG."""

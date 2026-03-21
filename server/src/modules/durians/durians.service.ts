@@ -87,7 +87,6 @@ export class DuriansService {
     });
 
     const nextTask = await this.repository.updateTask(task.id, {
-      annotatedImageUrl: null,
       detectedCount: 0,
       detectedLabels: [],
       errorMessage: null,
@@ -143,7 +142,6 @@ export class DuriansService {
       const detectedLabels = detectionResult.items.map((item) => item.label);
 
       await this.repository.updateTask(task.id, {
-        annotatedImageUrl: detectionResult.annotatedImageUrl,
         detectedCount: detectionResult.count,
         detectedLabels,
         rawResult: this.buildPersistedRawResult(detectionResult),
@@ -151,7 +149,6 @@ export class DuriansService {
       });
       this.logger.log(
         `CV detection completed ${JSON.stringify({
-          annotatedImageUrl: detectionResult.annotatedImageUrl,
           count: detectionResult.count,
           itemLabels: detectedLabels,
           taskId: task.id,
@@ -232,7 +229,6 @@ export class DuriansService {
     detectionResult: Awaited<ReturnType<CvService['detectAndAnnotate']>>,
   ): Record<string, unknown> {
     return {
-      annotatedImageUrl: detectionResult.annotatedImageUrl,
       count: detectionResult.count,
       items: detectionResult.items.map((item) => ({
         bbox: item.bbox,
@@ -247,21 +243,9 @@ export class DuriansService {
   private hydrateTaskUrls<T extends AnalysisTask | AnalysisTaskWithItems>(
     task: T,
   ): T {
-    const rawResult = task.rawResult
-      ? {
-          ...task.rawResult,
-          annotatedImageUrl: this.uploadsService.buildPublicUrl(
-            typeof task.rawResult.annotatedImageUrl === 'string'
-              ? task.rawResult.annotatedImageUrl
-              : null,
-          ),
-        }
-      : null;
-
     return {
       ...task,
-      annotatedImageUrl: this.uploadsService.buildPublicUrl(task.annotatedImageUrl),
-      rawResult,
+      rawResult: task.rawResult,
       sourceImageUrl: this.uploadsService.buildPublicUrl(task.sourceImageUrl) ?? '',
     };
   }

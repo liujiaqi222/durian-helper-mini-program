@@ -31,14 +31,12 @@
 8. 后台任务先把状态推进到 `DETECTING`，再调用 `CvService.detectAndAnnotate()`。
 9. `CvService` 优先读取本地 `imagePath`，组装 `multipart/form-data` 请求，转发到 Python `cv-service` 的 `/detect-and-annotate`。
 10. Python 服务返回：
-   - 标注后的整图 `annotated_image_base64`
    - 每个榴莲的裁剪图 `crop_image_base64`
    - 检测框坐标 `bbox`
    - 置信度 `confidence`
    - 稳定标签 `label`
-11. `CvService` 只会把标注图落盘，生成 `annotatedImageUrl`；crop 不落盘、不生成 URL。
+11. `CvService` 只透传结构化检测结果；crop 不落盘、不生成 URL。
 12. `DuriansService` 记录检测阶段结果，更新：
-   - `annotatedImageUrl`
    - `detectedCount`
    - `detectedLabels`
    - `rawResult`
@@ -65,7 +63,6 @@
 
 - 检测榴莲
 - 对榴莲稳定编号
-- 生成带编号的标注图
 - 提取每个榴莲 crop 供 AI 使用
 - 对每个榴莲输出结构化评分
 - 汇总推荐编号和整体结论
@@ -90,9 +87,9 @@ Python 侧核心逻辑在 `cv-service/app/services/detector.py`，当前职责�
    - `C`
    - ...
 6. 根据检测框从原图裁出 crop。
-7. 在原图上绘制序号框，生成标注图。
+7. 返回稳定标签、bbox 和 crop，供后端评分与前端绘制覆盖层使用。
 
-Python 当前仍然只负责“检测、编号、裁剪、标注”，不负责评分，不负责推荐，也不负责持久化业务结果。
+Python 当前仍然只负责“检测、编号、裁剪”，不负责评分，不负责推荐，也不负责持久化业务结果。
 
 ### 2.2 当前系统能稳定产出的结果
 
@@ -102,7 +99,6 @@ Python 当前仍然只负责“检测、编号、裁剪、标注”，不负责�
 - 每个榴莲的大致位置 `bbox`
 - 每个榴莲的置信度 `confidence`
 - 每个榴莲的标签 `A/B/C...`
-- 一张带序号的标注图
 - 每个榴莲对应的 crop base64
 - 每个榴莲的结构化评分：
   - `score`
@@ -132,11 +128,11 @@ Python 当前仍然只负责“检测、编号、裁剪、标注”，不负责�
 
 1. 小程序上传原图到 `server`
 2. `server` 保存原图并创建任务
-3. 后台调用 `cv-service` 检测、编号、生成标注图和 crop
-4. `server` 保存标注图，但不保存 crop
+3. 后台调用 `cv-service` 检测、编号并生成 crop
+4. `server` 不保存 crop，只保留检测元数据与原图 URL
 5. `server` 调 AI 对每个 crop 输出严格 JSON
 6. `server` 汇总任务级推荐结果
-7. 小程序轮询任务状态并按阶段展示
+7. 小程序轮询任务状态，并在原图上按 bbox 绘制字母和高亮态
 
 ### 3.2 为什么 crop 不再存储
 
@@ -155,10 +151,7 @@ crop 图本质上只是 AI 评分阶段的中间产物，不是长期业务资�
 - 避免保留无意义中间文件
 - 明确“可展示图片”和“仅供模型消费图片”的边界
 
-当前真正需要落盘并给前端展示的图片，只有：
-
-- 用户原图
-- 带序号的标注图
+当前真正需要落盘并给前端展示的图片，只有用户原图。
 
 ## 4. AI 对 crop 打分的方案
 
@@ -185,7 +178,6 @@ AI 的职责不是自由写评价，而是针对每个已编号榴莲输出结�
 当前实际数据流如下：
 
 1. Python 返回检测结果：
-   - `annotated_image_base64`
    - `count`
    - `items[]`
 2. 每个 `item` 包含：
@@ -193,8 +185,7 @@ AI 的职责不是自由写评价，而是针对每个已编号榴莲输出结�
    - `bbox`
    - `confidence`
    - `crop_image_base64`
-3. Nest 保存标注图，更新任务：
-   - `annotatedImageUrl`
+3. Nest 保存检测结果摘要，更新任务：
    - `detectedCount`
    - `detectedLabels`
    - `status = SCORING`
@@ -252,7 +243,6 @@ AI 的职责不是自由写评价，而是针对每个已编号榴莲输出结�
   "id": "xxx",
   "status": "DONE",
   "sourceImageUrl": "https://...",
-  "annotatedImageUrl": "https://...",
   "recommendedLabel": "A",
   "overallSummary": "本次共识别出 3 个榴莲，A 综合表现最好，建议优先选择。",
   "items": [
@@ -316,8 +306,8 @@ AI 的职责不是自由写评价，而是针对每个已编号榴莲输出结�
    - 服务端正在调用 Python 识别榴莲
    - 小程序展示“正在识别榴莲位置和编号”
 3. `SCORING`
-   - Python 已返回标注图，后端正在调用 AI 逐个评分
-   - 小程序会优先展示标注图和已识别的 `A/B/C...`
+   - Python 已返回编号、bbox 和 crop，后端正在调用 AI 逐个评分
+   - 小程序展示原图与已识别的 `A/B/C...`
    - 同时提示“AI 正在生成评分和购买建议”
 4. `DONE`
    - 所有评分和推荐都已生成
@@ -326,14 +316,14 @@ AI 的职责不是自由写评价，而是针对每个已编号榴莲输出结�
    - 任一关键步骤失败
    - 小程序展示失败原因和重试入口
 
-### 5.2 为什么要先返回标注图
+### 5.2 为什么前端改为原图覆盖层绘制
 
-只要用户先看到序号图，就能理解“系统已经识别出货架里的榴莲”。
+只要前端拿到原图、稳定标签和 bbox，就能在界面上实时绘制字母与高亮态，不再依赖后端预生成图片。
 
 因此当前实现中：
 
-- 检测一完成，任务详情接口就会带上 `annotatedImageUrl`
-- 即便 AI 评分还没结束，前端也能先展示标注图
+- 检测一完成，任务详情接口就会带上 `detectedLabels`
+- 结果完成后，前端基于 `items[].bbox` 在原图上绘制字母和推荐高亮
 - 结果页会在 `SCORING` 阶段提示“已识别 X 个榴莲：A、B、C”
 
 ### 5.3 当前接口返回结构
@@ -345,7 +335,6 @@ AI 的职责不是自由写评价，而是针对每个已编号榴莲输出结�
   "id": "xxx",
   "status": "SCORING",
   "sourceImageUrl": "https://...",
-  "annotatedImageUrl": "https://...",
   "detectedCount": 3,
   "detectedLabels": ["A", "B", "C"],
   "errorMessage": null,
@@ -360,7 +349,7 @@ AI 的职责不是自由写评价，而是针对每个已编号榴莲输出结�
 {
   "id": "xxx",
   "status": "DONE",
-  "annotatedImageUrl": "https://...",
+  "sourceImageUrl": "https://...",
   "recommendedLabel": "A",
   "overallSummary": "A 综合表现最好",
   "items": []
@@ -375,7 +364,7 @@ AI 的职责不是自由写评价，而是针对每个已编号榴莲输出结�
 
 当前行为是：
 
-- 标注图保留并落盘
+- 原图保留并落盘
 - crop 只在当前任务处理中存在
 - crop 仅作为发给 AI 的中间输入
 
@@ -427,4 +416,4 @@ item 模型已经补齐：
 
 ## 8. 一句话总结
 
-当前 `POST /durians/analyze` 已经完成从“同步检测半成品接口”到“异步任务编排接口”的改造：请求会快速返回任务 ID，后台完成 Python 检测、标注图生成、crop 驱动的 AI 结构化评分与最终推荐汇总，小程序则按 `PENDING / DETECTING / SCORING / DONE / FAILED` 阶段逐步展示识别与评分结果。
+当前 `POST /durians/analyze` 已经完成从“同步检测半成品接口”到“异步任务编排接口”的改造：请求会快速返回任务 ID，后台完成 Python 检测、crop 驱动的 AI 结构化评分与最终推荐汇总，小程序则按 `PENDING / DETECTING / SCORING / DONE / FAILED` 阶段逐步展示识别与评分结果，并在结果页基于原图与 bbox 进行前端标注绘制。

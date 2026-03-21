@@ -33,7 +33,6 @@ describe('analysis utils', () => {
   it('finds the recommended item by recommended label first', () => {
     const result: AnalysisResult = {
       sourceImageUrl: 'https://example.com/source.jpg',
-      annotatedImageUrl: 'https://example.com/annotated.jpg',
       recommendedLabel: 'B',
       overallSummary: '推荐 B',
       items: [
@@ -48,7 +47,6 @@ describe('analysis utils', () => {
   it('falls back to the smallest buy priority and highest score', () => {
     const result: AnalysisResult = {
       sourceImageUrl: 'https://example.com/source.jpg',
-      annotatedImageUrl: null,
       recommendedLabel: null,
       overallSummary: null,
       items: [
@@ -67,23 +65,21 @@ describe('analysis utils', () => {
     expect(isTerminalTaskStatus('SCORING')).toBe(false)
   })
 
-  it('uses annotated image as the only preview when available', () => {
+  it('uses source image as the preferred preview', () => {
     expect(
       resolveResultPreview({
-        annotatedImageUrl: 'https://example.com/annotated.jpg',
         sourceImageUrl: 'https://example.com/source.jpg',
         localImagePath: '/tmp/local-source.jpg',
       }),
     ).toEqual({
-      title: '编号标注图',
-      imageUrl: 'https://example.com/annotated.jpg',
+      title: '原图',
+      imageUrl: 'https://example.com/source.jpg',
     })
   })
 
-  it('falls back to source image and then local image when no annotated image exists', () => {
+  it('falls back to local image when no source image exists', () => {
     expect(
       resolveResultPreview({
-        annotatedImageUrl: null,
         sourceImageUrl: 'https://example.com/source.jpg',
         localImagePath: '/tmp/local-source.jpg',
       }),
@@ -94,7 +90,6 @@ describe('analysis utils', () => {
 
     expect(
       resolveResultPreview({
-        annotatedImageUrl: null,
         sourceImageUrl: null,
         localImagePath: '/tmp/local-source.jpg',
       }),

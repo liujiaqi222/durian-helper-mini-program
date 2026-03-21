@@ -3,7 +3,6 @@ import { basename, extname } from 'path';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { LoggerService } from '../../core/logger/logger.service';
-import { UploadsService } from '../uploads/uploads.service';
 
 interface CvDetectionItem {
   bbox: {
@@ -19,7 +18,6 @@ interface CvDetectionItem {
 }
 
 interface CvDetectionResponse {
-  annotated_image_base64?: string | null;
   count: number;
   items: CvDetectionItem[];
   message?: string | null;
@@ -32,7 +30,6 @@ export interface DetectAndAnnotateInput {
 }
 
 export interface DetectAndAnnotateOutput {
-  annotatedImageUrl: string | null;
   count: number;
   items: Array<{
     bbox: CvDetectionItem['bbox'];
@@ -48,7 +45,6 @@ export interface DetectAndAnnotateOutput {
 export class CvService {
   constructor(
     private readonly configService: ConfigService,
-    private readonly uploadsService: UploadsService,
     private readonly logger: LoggerService,
   ) {}
 
@@ -56,15 +52,6 @@ export class CvService {
     input: DetectAndAnnotateInput,
   ): Promise<DetectAndAnnotateOutput> {
     const response = await this.callDetectAndAnnotate(input);
-
-    const annotatedImageUrl = response.annotated_image_base64
-      ? (
-          await this.uploadsService.storeBase64Image(
-            response.annotated_image_base64,
-            `${input.taskId}-annotated`,
-          )
-        ).filePath
-      : null;
 
     const items = response.items.map((item) => ({
       bbox: item.bbox,
@@ -75,7 +62,6 @@ export class CvService {
     }));
 
     return {
-      annotatedImageUrl,
       count: response.count,
       items,
       message: response.message ?? null,
@@ -133,7 +119,6 @@ export class CvService {
     const payload = (await response.json()) as CvDetectionResponse;
     this.logger.log(
       `cv-service detect-and-annotate completed ${JSON.stringify({
-        annotatedImageReturned: Boolean(payload.annotated_image_base64),
         count: payload.count,
         itemLabels: payload.items.map((item) => item.label),
         message: payload.message ?? null,

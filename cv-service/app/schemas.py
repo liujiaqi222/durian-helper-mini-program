@@ -34,10 +34,6 @@ class DetectionResponse(BaseModel):
         default=None,
         description="Optional business message, such as when no durians are detected.",
     )
-    annotated_image_base64: str | None = Field(
-        default=None,
-        description="Base64-encoded annotated full image.",
-    )
 
 
 class ModelInfoResponse(BaseModel):

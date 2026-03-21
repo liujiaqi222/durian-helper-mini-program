@@ -50,7 +50,6 @@ export function sortItemsForDisplay(items: AnalysisTaskItem[]): AnalysisTaskItem
 }
 
 interface ResultPreviewInput {
-  annotatedImageUrl: string | null
   sourceImageUrl: string | null
   localImagePath: string | null
 }
@@ -61,13 +60,6 @@ interface ResultPreview {
 }
 
 export function resolveResultPreview(input: ResultPreviewInput): ResultPreview | null {
-  if (input.annotatedImageUrl) {
-    return {
-      title: '编号标注图',
-      imageUrl: input.annotatedImageUrl,
-    }
-  }
-
   if (input.sourceImageUrl) {
     return {
       title: '原图',
