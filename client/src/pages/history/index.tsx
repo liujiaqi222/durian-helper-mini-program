@@ -14,7 +14,7 @@ function formatHistoryTime(value: string): string {
   const day = `${date.getDate()}`.padStart(2, '0')
   const hours = `${date.getHours()}`.padStart(2, '0')
   const minutes = `${date.getMinutes()}`.padStart(2, '0')
-  return `${month}-${day} ${hours}:${minutes}`
+  return `${date.getFullYear()}-${month}-${day} ${hours}:${minutes}`
 }
 
 function getStatusText(item: AnalysisHistoryItem): string {

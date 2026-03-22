@@ -1,5 +1,5 @@
 import { Image, Text, View } from '@tarojs/components'
-import Taro, { useLoad, useShareAppMessage } from '@tarojs/taro'
+import Taro, { getCurrentInstance, useLoad, useShareAppMessage } from '@tarojs/taro'
 import { useEffect, useRef, useState } from 'react'
 import { getAnalysisResult, getAnalysisTask, retryAnalysisTask } from '../../services/api'
 import { useAnalysisStore } from '../../store/analysis'
@@ -13,6 +13,7 @@ import {
   getStatusDescription,
   isTerminalTaskStatus,
   resolveResultPreview,
+  resolveTaskIdForResultPage,
   sortItemsForDisplay,
 } from '../../utils/analysis'
 
@@ -41,6 +42,8 @@ export default function ResultPage() {
   const pollAttemptRef = useRef(0)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isMountedRef = useRef(true)
+  const routeTaskId = getCurrentInstance().router?.params?.taskId
+  const activeTaskId = resolveTaskIdForResultPage(routeTaskId, taskId)
 
   const recommendedItem = result ? findRecommendedItem(result) : null
   const displayItems = sortItemsForDisplay(result?.items || [])
@@ -64,7 +67,7 @@ export default function ResultPage() {
     title: recommendedItem
       ? `我刚挑出了更推荐的 ${recommendedItem.label}，你也来看看`
       : '我刚用榴莲挑选助手分析了一张图，分享给你看看',
-    path: buildResultSharePath(profile?.inviteCode || '', taskId),
+    path: buildResultSharePath(profile?.inviteCode || '', activeTaskId),
   }))
 
   useEffect(() => {
@@ -77,7 +80,7 @@ export default function ResultPage() {
   }, [])
 
   useEffect(() => {
-    if (!taskId) {
+    if (!activeTaskId) {
       void Taro.reLaunch({
         url: '/pages/index/index',
       })
@@ -85,18 +88,18 @@ export default function ResultPage() {
     }
 
     void syncTaskStatus()
-    // syncTaskStatus is intentionally triggered by taskId changes only.
+    // syncTaskStatus is intentionally triggered by task id changes only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taskId])
+  }, [activeTaskId])
 
   async function syncTaskStatus() {
-    if (!taskId) {
+    if (!activeTaskId) {
       return
     }
 
     try {
       clearErrorMessage()
-      const nextTask = await getAnalysisTask(taskId)
+      const nextTask = await getAnalysisTask(activeTaskId)
       setTaskDetail(nextTask)
       setTaskStatus(nextTask.status)
 
@@ -117,7 +120,7 @@ export default function ResultPage() {
   }
 
   function scheduleNextPoll() {
-    if (!taskId) {
+    if (!activeTaskId) {
       return
     }
 
@@ -138,12 +141,12 @@ export default function ResultPage() {
   }
 
   async function loadResult() {
-    if (!taskId) {
+    if (!activeTaskId) {
       return
     }
 
     try {
-      const nextResult = await getAnalysisResult(taskId)
+      const nextResult = await getAnalysisResult(activeTaskId)
       if (!isMountedRef.current) {
         return
       }
@@ -155,7 +158,7 @@ export default function ResultPage() {
   }
 
   async function handleRetry() {
-    if (!taskId || isRetrying) {
+    if (!activeTaskId || isRetrying) {
       return
     }
 
@@ -164,7 +167,7 @@ export default function ResultPage() {
     pollAttemptRef.current = 0
 
     try {
-      const nextTask = await retryAnalysisTask(taskId)
+      const nextTask = await retryAnalysisTask(activeTaskId)
       setTaskStatus(nextTask.status)
       scheduleNextPoll()
     } catch (error) {

@@ -6,6 +6,7 @@ import {
   getInProgressMessages,
   getStatusDescription,
   isTerminalTaskStatus,
+  resolveTaskIdForResultPage,
   resolveResultPreview,
 } from './analysis'
 
@@ -147,5 +148,11 @@ describe('analysis utils', () => {
       title: '原图',
       imageUrl: '/tmp/local-source.jpg',
     })
+  })
+
+  it('prefers the route task id over the store task id on the result page', () => {
+    expect(resolveTaskIdForResultPage('route-task', '')).toBe('route-task')
+    expect(resolveTaskIdForResultPage('', 'store-task')).toBe('store-task')
+    expect(resolveTaskIdForResultPage('  ', 'store-task')).toBe('store-task')
   })
 })

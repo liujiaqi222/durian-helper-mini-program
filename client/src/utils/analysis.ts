@@ -12,6 +12,16 @@ export function getStatusDescription(status: AnalysisTaskStatus): string {
   return statusDescriptionMap[status]
 }
 
+export function resolveTaskIdForResultPage(routeTaskId: string | undefined, storeTaskId: string): string {
+  const normalizedRouteTaskId = typeof routeTaskId === 'string' ? routeTaskId.trim() : ''
+
+  if (normalizedRouteTaskId) {
+    return normalizedRouteTaskId
+  }
+
+  return storeTaskId
+}
+
 export function isTerminalTaskStatus(status: AnalysisTaskStatus): boolean {
   return status === 'DONE' || status === 'FAILED'
 }
