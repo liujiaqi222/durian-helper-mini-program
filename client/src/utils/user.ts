@@ -19,3 +19,17 @@ export function buildInviteSharePath(inviteCode: string): string {
 
   return `/pages/index/index?inviterCode=${encodeURIComponent(normalizedInviteCode)}`
 }
+
+export function buildResultSharePath(inviteCode: string, taskId: string): string {
+  const normalizedTaskId = taskId.trim()
+  if (!normalizedTaskId) {
+    return buildInviteSharePath(inviteCode)
+  }
+
+  const normalizedInviteCode = normalizeInviteCode(inviteCode)
+  if (!normalizedInviteCode) {
+    return `/pages/result/index?taskId=${encodeURIComponent(normalizedTaskId)}`
+  }
+
+  return `/pages/result/index?taskId=${encodeURIComponent(normalizedTaskId)}&inviterCode=${encodeURIComponent(normalizedInviteCode)}`
+}

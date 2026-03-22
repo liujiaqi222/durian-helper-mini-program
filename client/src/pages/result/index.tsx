@@ -1,10 +1,11 @@
 import { Image, Text, View } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useLoad, useShareAppMessage } from '@tarojs/taro'
 import { useEffect, useRef, useState } from 'react'
 import { getAnalysisResult, getAnalysisTask, retryAnalysisTask } from '../../services/api'
 import { useAnalysisStore } from '../../store/analysis'
 import { useUserStore } from '../../store/user'
 import type { AnalysisTaskDetectionItem } from '../../types/analysis'
+import { buildResultSharePath } from '../../utils/user'
 import {
   findRecommendedItem,
   getResultSectionOrder,
@@ -27,6 +28,7 @@ export default function ResultPage() {
   const localImagePath = useAnalysisStore((state) => state.localImagePath)
   const result = useAnalysisStore((state) => state.result)
   const errorMessage = useAnalysisStore((state) => state.errorMessage)
+  const setSubmissionContext = useAnalysisStore((state) => state.setSubmissionContext)
   const setTaskStatus = useAnalysisStore((state) => state.setTaskStatus)
   const setTaskDetail = useAnalysisStore((state) => state.setTaskDetail)
   const setResult = useAnalysisStore((state) => state.setResult)
@@ -43,6 +45,27 @@ export default function ResultPage() {
   const recommendedItem = result ? findRecommendedItem(result) : null
   const displayItems = sortItemsForDisplay(result?.items || [])
   const highlightedLabel = recommendedItem?.label || null
+
+  useLoad((options) => {
+    const sharedTaskId = typeof options?.taskId === 'string' ? options.taskId.trim() : ''
+    if (!sharedTaskId) {
+      return
+    }
+
+    if (sharedTaskId !== useAnalysisStore.getState().taskId) {
+      setSubmissionContext({
+        taskId: sharedTaskId,
+        taskStatus: 'PENDING',
+      })
+    }
+  })
+
+  useShareAppMessage(() => ({
+    title: recommendedItem
+      ? `我刚挑出了更推荐的 ${recommendedItem.label}，你也来看看`
+      : '我刚用榴莲挑选助手分析了一张图，分享给你看看',
+    path: buildResultSharePath(profile?.inviteCode || '', taskId),
+  }))
 
   useEffect(() => {
     return () => {
