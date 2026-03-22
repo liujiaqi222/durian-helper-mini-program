@@ -1,5 +1,6 @@
 import Taro from '@tarojs/taro'
 import type {
+  AnalysisHistoryItem,
   AnalysisResult,
   AnalysisTask,
   CreateAnalysisTaskResponse,
@@ -277,6 +278,12 @@ export function retryAnalysisTask(taskId: string): Promise<AnalysisTask> {
   return request<AnalysisTask>(`/durians/tasks/${taskId}/retry`, {
     method: 'POST',
   }).then(normalizeAnalysisTask)
+}
+
+export function getAnalysisHistory(): Promise<AnalysisHistoryItem[]> {
+  return request<AnalysisHistoryItem[]>('/durians/history').then((tasks) =>
+    tasks.map(normalizeAnalysisTask),
+  )
 }
 
 export function grantAdReward(): Promise<UserProfile> {

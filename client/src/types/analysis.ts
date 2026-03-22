@@ -13,6 +13,7 @@ export interface CreateAnalysisTaskResponse {
 
 export interface AnalysisTask {
   id: string
+  createdAt: string
   sourceImagePath: string | null
   sourceImageUrl: string
   detectedCount: number
@@ -22,7 +23,10 @@ export interface AnalysisTask {
   overallSummary: string | null
   recommendedLabel: string | null
   rawResult: AnalysisTaskRawResult | null
+  updatedAt: string
 }
+
+export interface AnalysisHistoryItem extends AnalysisTask {}
 
 export interface AnalysisBoundingBox {
   x1: number

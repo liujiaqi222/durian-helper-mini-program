@@ -78,6 +78,12 @@ export class DuriansController {
     return this.duriansService.getAnalysisTask(params.taskId);
   }
 
+  @Get('history')
+  @UseGuards(AuthGuard)
+  getHistoryTasks(@CurrentUser() user: AuthenticatedUser) {
+    return this.duriansService.getHistoryTasks(user.userId);
+  }
+
   @Get('tasks/:taskId/result')
   getAnalysisResult(@Param() params: TaskIdParamDto) {
     return this.duriansService.getAnalysisResult(params.taskId);

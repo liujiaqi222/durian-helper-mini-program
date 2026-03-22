@@ -52,6 +52,16 @@ export class InMemoryDurianAnalysisRepository implements DurianAnalysisRepositor
     });
   }
 
+  findRecentTasksByUserId(userId: number, limit: number): Promise<AnalysisTask[]> {
+    return Promise.resolve(
+      [...this.tasks.values()]
+        .filter((task) => task.userId === userId)
+        .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+        .slice(0, limit)
+        .map((task) => this.cloneTask(task)),
+    );
+  }
+
   replaceTaskItems(input: ReplaceAnalysisTaskItemsInput): Promise<void> {
     const task = this.tasks.get(input.taskId);
     if (!task) {

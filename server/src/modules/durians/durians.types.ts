@@ -60,6 +60,7 @@ export interface DurianAnalysisRepository {
   createTask(input: CreateAnalysisTaskInput): Promise<AnalysisTask>;
   findTaskById(id: string): Promise<AnalysisTask | null>;
   findTaskResultById(id: string): Promise<AnalysisTaskWithItems | null>;
+  findRecentTasksByUserId(userId: number, limit: number): Promise<AnalysisTask[]>;
   replaceTaskItems(input: ReplaceAnalysisTaskItemsInput): Promise<void>;
   updateTask(
     id: string,

@@ -89,6 +89,12 @@ export default function Index() {
     resetAnalysis()
   }
 
+  async function handleOpenHistory() {
+    await Taro.navigateTo({
+      url: '/pages/history/index',
+    })
+  }
+
   const remainingCreditsText = isBootstrapping ? '登录中...' : `剩余 ${profile?.remainingCredits ?? 0} 次`
   const inviteSummaryText = isBootstrapping
     ? '正在同步次数'
@@ -109,15 +115,25 @@ export default function Index() {
     <View className='min-h-screen bg-gradient-to-br from-yellow-50 via-white to-amber-50 px-4 py-6'>
       <View className='flex flex-col gap-5'>
         <View className='flex flex-col gap-3 rounded-3xl border border-yellow-100 bg-white px-6 py-5 shadow-sm'>
-          <Text className='text-[34px] font-extrabold leading-[1.15] text-gray-900'>智能挑选最棒的榴莲</Text>
+          <View className='flex items-start justify-between gap-4'>
+            <Text className='flex-1 text-[34px] font-extrabold leading-[1.15] text-gray-900'>智能挑选最棒的榴莲</Text>
+
+          </View>
           <Text className='text-sm leading-relaxed text-gray-500'>
             拍一张货架图，快速挑出更值得买的那颗。
           </Text>
         </View>
 
         <View className='flex flex-col gap-4 rounded-3xl border border-yellow-100 bg-white p-6 shadow-sm'>
-          <Text className='text-lg font-bold text-gray-900'>开始挑选</Text>
-
+          <View className='flex items-center justify-between gap-3'>
+            <Text className='text-lg font-bold text-gray-900'>开始挑选</Text>
+            <View
+              className='shrink-0 rounded-full border border-amber-200 bg-amber-50 px-3 py-2 flex items-center'
+              onClick={handleOpenHistory}
+            >
+              <Text className='text-xs font-semibold text-amber-700'>历史记录</Text>
+            </View>
+          </View>
           {localImagePath ? (
             <View
               className='relative w-full overflow-hidden rounded-2xl bg-gray-50 ring-1 ring-gray-100 active:opacity-95'
@@ -150,8 +166,8 @@ export default function Index() {
           <View className='mt-2 flex flex-col gap-3'>
             <View
               className={`flex w-full items-center justify-center rounded-2xl py-3 text-base font-bold transition-all ${primaryButtonDisabled
-                  ? 'bg-amber-300 text-white opacity-70 cursor-not-allowed'
-                  : 'bg-amber-500 text-white shadow-sm active:scale-95 active:bg-amber-600'
+                ? 'bg-amber-300 text-white opacity-70 cursor-not-allowed'
+                : 'bg-amber-500 text-white shadow-sm active:scale-95 active:bg-amber-600'
                 }`}
               onClick={
                 primaryButtonDisabled
@@ -174,11 +190,11 @@ export default function Index() {
               >
                 去邀请
               </Button>
-          </View>
+            </View>
 
-          {authError ? (
-            <Text className='text-sm leading-relaxed text-red-500'>{authError}</Text>
-          ) : null}
+            {authError ? (
+              <Text className='text-sm leading-relaxed text-red-500'>{authError}</Text>
+            ) : null}
           </View>
         </View>
 

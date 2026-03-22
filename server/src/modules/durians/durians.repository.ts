@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDb } from '../../database/drizzle/drizzle.module';
 import {
   analysisTaskItems,
@@ -61,6 +61,17 @@ export class DrizzleDurianAnalysisRepository implements DurianAnalysisRepository
       ...this.mapTask(task),
       items: items.map((item) => this.mapItem(item)),
     };
+  }
+
+  async findRecentTasksByUserId(userId: number, limit: number): Promise<AnalysisTask[]> {
+    const tasks = await this.db
+      .select()
+      .from(analysisTasks)
+      .where(eq(analysisTasks.userId, userId))
+      .orderBy(desc(analysisTasks.createdAt), desc(analysisTasks.id))
+      .limit(limit);
+
+    return tasks.map((task) => this.mapTask(task));
   }
 
   async replaceTaskItems(input: ReplaceAnalysisTaskItemsInput): Promise<void> {

@@ -68,6 +68,11 @@ export class DuriansService {
     return this.hydrateTaskUrls(task);
   }
 
+  async getHistoryTasks(userId: number): Promise<AnalysisTask[]> {
+    const tasks = await this.repository.findRecentTasksByUserId(userId, 20);
+    return tasks.map((task) => this.hydrateTaskUrls(task));
+  }
+
   async getAnalysisResult(taskId: string): Promise<AnalysisTaskWithItems> {
     const task = await this.repository.findTaskResultById(taskId);
     if (!task) {

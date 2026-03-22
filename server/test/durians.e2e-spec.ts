@@ -191,4 +191,45 @@ describe('Durian analysis endpoints (e2e)', () => {
 
     expect(response.body.message).toBe('file is required');
   });
+
+  it('returns the latest 20 history tasks for the current user only', async () => {
+    const currentUserToken = await loginAndGetToken('test-code-durian-history-a');
+    const otherUserToken = await loginAndGetToken('test-code-durian-history-b');
+
+    for (let index = 0; index < 22; index += 1) {
+      await request(app.getHttpServer())
+        .post('/api/v1/durians/analyze')
+        .set('Authorization', `Bearer ${currentUserToken}`)
+        .attach('file', pngPixelBuffer, {
+          contentType: 'image/png',
+          filename: `durian-${index}.png`,
+        })
+        .expect(201);
+    }
+
+    await request(app.getHttpServer())
+      .post('/api/v1/durians/analyze')
+      .set('Authorization', `Bearer ${otherUserToken}`)
+      .attach('file', pngPixelBuffer, {
+        contentType: 'image/png',
+        filename: 'other-user.png',
+      })
+      .expect(201);
+
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/durians/history')
+      .set('Authorization', `Bearer ${currentUserToken}`)
+      .expect(200);
+
+    const body = response.body as {
+      data: Array<{
+        id: string;
+        sourceImageUrl: string;
+      }>;
+    };
+
+    expect(body.data).toHaveLength(20);
+    expect(body.data.every((task) => task.sourceImageUrl.startsWith('/uploads/upload-'))).toBe(true);
+    expect(new Set(body.data.map((task) => task.id)).size).toBe(20);
+  });
 });

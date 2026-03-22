@@ -11,6 +11,7 @@ import type {
   DurianAnalysisRepository,
   ReplaceAnalysisTaskItemsInput,
 } from './durians.types';
+import { UsersService } from '../users/users.service';
 
 class InMemoryDurianAnalysisRepository implements DurianAnalysisRepository {
   private readonly tasks = new Map<string, AnalysisTask & { items: AnalysisTaskItem[] }>();
@@ -18,6 +19,7 @@ class InMemoryDurianAnalysisRepository implements DurianAnalysisRepository {
   createTask(input: CreateAnalysisTaskInput): Promise<AnalysisTask> {
     const task: AnalysisTask & { items: AnalysisTaskItem[] } = {
       id: `task_${this.tasks.size + 1}`,
+      userId: input.userId,
       sourceImagePath: input.sourceImagePath ?? null,
       sourceImageUrl: input.sourceImageUrl,
       detectedCount: 0,
@@ -54,6 +56,16 @@ class InMemoryDurianAnalysisRepository implements DurianAnalysisRepository {
       ...task,
       items: task.items.map((item) => ({ ...item })),
     });
+  }
+
+  findRecentTasksByUserId(userId: number, limit: number): Promise<AnalysisTask[]> {
+    return Promise.resolve(
+      [...this.tasks.values()]
+        .filter((task) => task.userId === userId)
+        .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+        .slice(0, limit)
+        .map((task) => ({ ...task, items: undefined } as unknown as AnalysisTask)),
+    );
   }
 
   replaceTaskItems(input: ReplaceAnalysisTaskItemsInput): Promise<void> {
@@ -96,6 +108,7 @@ describe('DuriansService', () => {
   let logger: { log: jest.Mock; warn: jest.Mock; error: jest.Mock };
   let aiService: { scoreDurians: jest.Mock };
   let uploadsService: { buildPublicUrl: jest.Mock };
+  let usersService: { consumeAnalyzeCredit: jest.Mock };
 
   beforeEach(() => {
     jest.useFakeTimers();
@@ -146,11 +159,17 @@ describe('DuriansService', () => {
         ],
       }),
     };
+    usersService = {
+      consumeAnalyzeCredit: jest.fn().mockResolvedValue({
+        remainingCredits: 9,
+      }),
+    };
     service = new DuriansService(
       repository,
       aiService as unknown as AiService,
       cvService as unknown as CvService,
       uploadsService as unknown as UploadsService,
+      usersService as unknown as UsersService,
       logger as unknown as LoggerService,
     );
   });
@@ -295,5 +314,30 @@ describe('DuriansService', () => {
     const storedTask = await service.getAnalysisTask(task.id);
     expect(storedTask.status).toBe('FAILED');
     expect(storedTask.errorMessage).toBe('invalid ai json');
+  });
+
+  it('returns the latest 20 tasks for the given user only', async () => {
+    for (let index = 0; index < 22; index += 1) {
+      const task = await service.createAnalysisTask({
+        userId: 101,
+        imageUrl: `/uploads/history-${index}.png`,
+      });
+
+      await repository.updateTask(task.id, {
+        createdAt: new Date(`2026-03-19T00:${String(index).padStart(2, '0')}:00.000Z`),
+      });
+    }
+
+    await service.createAnalysisTask({
+      userId: 202,
+      imageUrl: '/uploads/other-user.png',
+    });
+
+    const history = await service.getHistoryTasks(101);
+
+    expect(history).toHaveLength(20);
+    expect(history.every((task) => task.userId === 101)).toBe(true);
+    expect(history[0]?.sourceImageUrl).toBe('/uploads/history-21.png');
+    expect(history[19]?.sourceImageUrl).toBe('/uploads/history-2.png');
   });
 });
