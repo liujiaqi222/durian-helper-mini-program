@@ -6,8 +6,7 @@ import type {
 } from '../types/analysis'
 import type { LoginResponse, UserProfile } from '../types/user'
 
-const DEFAULT_API_BASE_URL = 'http://127.0.0.1:3000/api/v1'
-const API_BASE_URL = __API_BASE_URL__ || DEFAULT_API_BASE_URL
+const API_BASE_URL = process.env.TARO_APP_API_BASE_URL
 const AUTH_TOKEN_STORAGE_KEY = 'durian_auth_token'
 const AUTH_USER_STORAGE_KEY = 'durian_auth_user'
 
@@ -32,6 +31,10 @@ let authSession: AuthSession | null = null
 let loginPromise: Promise<AuthSession> | null = null
 
 function joinUrl(path: string): string {
+  if (!API_BASE_URL) {
+    throw new Error('缺少环境变量 TARO_APP_API_BASE_URL')
+  }
+
   return `${API_BASE_URL}${path}`
 }
 
@@ -159,7 +162,6 @@ async function ensureAuthSession(forceRefresh = false, inviterCode?: string): Pr
 }
 
 export async function bootstrapSession(inviterCode?: string): Promise<UserProfile> {
-  const session = await ensureAuthSession(false, inviterCode)
 
   try {
     const profile = await request<UserProfile>('/users/me')
