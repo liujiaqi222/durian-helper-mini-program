@@ -194,19 +194,5 @@ cd cv-service
 ./.venv/bin/pytest tests -q
 ```
 
-## 推荐联调顺序
 
-1. 复制 `.env.example` 为 `.env` 并补全关键变量
-2. 启动 Postgres 和 Redis
-3. 启动 `cv-service`
-4. 启动 `server`
-5. 启动 `client` 并在微信开发者工具中打开 `client/dist`
-
-如果只想验证视觉检测链路，可以先跳过小程序和后端，直接访问 `cv-service` 的 `/docs`。
-
-## 当前仓库状态说明
-
-- `cv-service/README.md` 已包含较完整的视觉服务说明
-- `server/README.md` 仍是 NestJS 默认模板，建议后续补成项目文档
-- 根目录本文档用于说明整个仓库的模块关系和启动方式
 
