@@ -24,4 +24,4 @@ RUN mkdir -p /app/uploads
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "npm run db:migrate && node dist/src/main.js"]
+CMD ["sh", "-c", "npm run db:migrate && npm run start:prod"]

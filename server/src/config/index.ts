@@ -1,3 +1,5 @@
+import { resolvePostgresUrl, resolveRedisUrl } from './env';
+
 export interface AppConfig {
   environment: string;
   port: number;
@@ -18,8 +20,8 @@ export interface AppConfig {
 export default (): AppConfig => ({
   environment: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT || 3000),
-  postgres: process.env.POSTGRES_URL,
-  redis: process.env.REDIS_URL,
+  postgres: resolvePostgresUrl(process.env),
+  redis: resolveRedisUrl(process.env),
   publicBaseUrl:
     process.env.PUBLIC_BASE_URL ||
     `http://127.0.0.1:${Number(process.env.PORT || 3000)}`,

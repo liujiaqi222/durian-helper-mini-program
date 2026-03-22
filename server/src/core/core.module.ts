@@ -2,6 +2,7 @@ import { Global, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import config from '../config';
+import { getEnvFilePaths, hasPostgresConfig, hasRedisConfig } from '../config/env';
 import { DrizzleModule } from '../database/drizzle/drizzle.module';
 import { RedisModule } from '../database/redis/redis.module';
 import { AllExceptionsFilter } from './all-exceptions/all-exceptions.filter';
@@ -14,14 +15,18 @@ import { LoggerService } from './logger/logger.service';
     ConfigModule.forRoot({
       isGlobal: true,
       load: [config],
-      envFilePath: ['.env', `.env.${process.env.NODE_ENV || 'development'}`],
+      envFilePath: getEnvFilePaths(process.env.NODE_ENV),
       validate: (env: Record<string, string | undefined>) => {
         const isTest = (env.NODE_ENV || 'development') === 'test';
-        if (!isTest && !env.POSTGRES_URL?.trim()) {
-          throw new Error('Missing required env var: POSTGRES_URL');
+        if (!isTest && !hasPostgresConfig(env)) {
+          throw new Error(
+            'Missing required Postgres config: set POSTGRES_URL or POSTGRES_PASSWORD with host/user/db fields',
+          );
         }
-        if (!isTest && !env.REDIS_URL?.trim()) {
-          throw new Error('Missing required env var: REDIS_URL');
+        if (!isTest && !hasRedisConfig(env)) {
+          throw new Error(
+            'Missing required Redis config: set REDIS_URL or REDIS_HOST',
+          );
         }
         if (!isTest && !env.ARK_API_KEY?.trim()) {
           throw new Error('Missing required env var: ARK_API_KEY');
