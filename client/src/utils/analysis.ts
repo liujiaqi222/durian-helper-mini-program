@@ -80,6 +80,49 @@ interface ResultPreview {
   imageUrl: string
 }
 
+interface ResultSectionOrderInput {
+  hasDisplayItems: boolean
+  hasError: boolean
+  hasOverallSummary: boolean
+  hasPreview: boolean
+  hasRecommendedItem: boolean
+  isInProgress: boolean
+}
+
+export type ResultSectionKey =
+  | 'recommended'
+  | 'summary'
+  | 'progress'
+  | 'preview'
+  | 'details'
+  | 'error'
+
+export function getResultSectionOrder(input: ResultSectionOrderInput): ResultSectionKey[] {
+  const orderedSections: ResultSectionKey[] = []
+
+  if (input.isInProgress) {
+    orderedSections.push('progress')
+  } else if (input.hasRecommendedItem) {
+    orderedSections.push('recommended')
+  } else if (input.hasOverallSummary) {
+    orderedSections.push('summary')
+  }
+
+  if (input.hasPreview) {
+    orderedSections.push('preview')
+  }
+
+  if (input.hasDisplayItems) {
+    orderedSections.push('details')
+  }
+
+  if (input.hasError) {
+    orderedSections.push('error')
+  }
+
+  return orderedSections
+}
+
 export function resolveResultPreview(input: ResultPreviewInput): ResultPreview | null {
   if (input.sourceImageUrl) {
     return {

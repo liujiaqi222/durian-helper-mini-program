@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { AnalysisResult, AnalysisTaskItem } from '../types/analysis'
 import {
   findRecommendedItem,
+  getResultSectionOrder,
   getInProgressMessages,
   getStatusDescription,
   isTerminalTaskStatus,
@@ -98,6 +99,32 @@ describe('analysis utils', () => {
       title: '原图',
       imageUrl: 'https://example.com/source.jpg',
     })
+  })
+
+  it('prioritizes recommendation and preview before secondary sections on the result page', () => {
+    expect(
+      getResultSectionOrder({
+        hasDisplayItems: true,
+        hasError: false,
+        hasOverallSummary: false,
+        hasPreview: true,
+        hasRecommendedItem: true,
+        isInProgress: false,
+      }),
+    ).toEqual(['recommended', 'preview', 'details'])
+  })
+
+  it('keeps progress ahead of preview while analysis is still running', () => {
+    expect(
+      getResultSectionOrder({
+        hasDisplayItems: false,
+        hasError: false,
+        hasOverallSummary: false,
+        hasPreview: true,
+        hasRecommendedItem: false,
+        isInProgress: true,
+      }),
+    ).toEqual(['progress', 'preview'])
   })
 
   it('falls back to local image when no source image exists', () => {
