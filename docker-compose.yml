@@ -6,6 +6,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-durian_helper}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
+    ports:
+      - "5436:5432"
     healthcheck:
       test:
         [
@@ -66,18 +68,11 @@ services:
       PUBLIC_BASE_URL: http://127.0.0.1:${BACKEND_PORT:-5000}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB:-durian_helper}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_DB: 0
       REDIS_TLS: "false"
       CV_SERVICE_BASE_URL: http://cv-service:8010
-      ARK_API_KEY: ${ARK_API_KEY:-}
-      ARK_BASE_URL: ${ARK_BASE_URL:-https://ark.cn-beijing.volces.com/api/coding/v1}
-      ARK_MODEL: ${ARK_MODEL:-doubao-seed-2.0-lite}
-      ARK_TIMEOUT_MS: ${ARK_TIMEOUT_MS:-15000}
     healthcheck:
       test:
         [
