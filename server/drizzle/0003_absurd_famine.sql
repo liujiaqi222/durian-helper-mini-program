@@ -32,7 +32,30 @@ CREATE TABLE "users" (
 );
 --> statement-breakpoint
 ALTER TABLE "analysis_tasks" ALTER COLUMN "detected_count" SET DEFAULT 0;--> statement-breakpoint
-ALTER TABLE "analysis_tasks" ADD COLUMN "user_id" integer NOT NULL;--> statement-breakpoint
+ALTER TABLE "analysis_tasks" ADD COLUMN "user_id" integer;--> statement-breakpoint
+INSERT INTO "users" (
+	"public_id",
+	"openid",
+	"invite_code",
+	"name",
+	"remaining_credits",
+	"used_credits",
+	"ad_reward_count",
+	"invite_reward_count"
+) VALUES (
+	'usr_legacy_tasks',
+	'legacy-analysis-tasks',
+	'INVLEGACY',
+	'Legacy Tasks',
+	0,
+	0,
+	0,
+	0
+) ON CONFLICT ("openid") DO NOTHING;--> statement-breakpoint
+UPDATE "analysis_tasks"
+SET "user_id" = (SELECT "id" FROM "users" WHERE "openid" = 'legacy-analysis-tasks')
+WHERE "user_id" IS NULL;--> statement-breakpoint
+ALTER TABLE "analysis_tasks" ALTER COLUMN "user_id" SET NOT NULL;--> statement-breakpoint
 ALTER TABLE "credit_transactions" ADD CONSTRAINT "credit_transactions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "users" ADD CONSTRAINT "users_invited_by_user_id_users_id_fk" FOREIGN KEY ("invited_by_user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "analysis_tasks" ADD CONSTRAINT "analysis_tasks_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
