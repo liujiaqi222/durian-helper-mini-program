@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { AuthModule } from '../auth/auth.module';
+import { UsersModule } from '../users/users.module';
 import { AiModule } from '../ai/ai.module';
 import { UploadsModule } from '../uploads/uploads.module';
 import { DURIAN_ANALYSIS_REPOSITORY } from './durians.constants';
@@ -10,7 +12,7 @@ import { DrizzleDurianAnalysisRepository } from './durians.repository';
 import { DuriansService } from './durians.service';
 
 @Module({
-  imports: [AiModule, UploadsModule],
+  imports: [AiModule, UploadsModule, UsersModule, AuthModule],
   controllers: [DuriansController],
   providers: [
     DuriansService,

@@ -25,3 +25,5 @@ server/cv-service/.tools/
 
 .DS_Store
 .cache
+
+uploads/

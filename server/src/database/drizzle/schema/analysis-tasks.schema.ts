@@ -9,6 +9,7 @@ import {
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { users } from './users.schema';
 
 export const analysisStatusEnum = pgEnum('analysis_status', [
   'PENDING',
@@ -20,6 +21,9 @@ export const analysisStatusEnum = pgEnum('analysis_status', [
 
 export const analysisTasks = pgTable('analysis_tasks', {
   id: uuid('id').defaultRandom().primaryKey(),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
   sourceImagePath: text('source_image_path'),
   sourceImageUrl: text('source_image_url').notNull(),
   annotatedImageUrl: text('annotated_image_url'),

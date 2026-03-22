@@ -3,6 +3,7 @@ import Taro from '@tarojs/taro'
 import { useEffect, useRef, useState } from 'react'
 import { getAnalysisResult, getAnalysisTask, retryAnalysisTask } from '../../services/api'
 import { useAnalysisStore } from '../../store/analysis'
+import { useUserStore } from '../../store/user'
 import type { AnalysisTaskDetectionItem } from '../../types/analysis'
 import {
   findRecommendedItem,
@@ -31,6 +32,7 @@ export default function ResultPage() {
   const setErrorMessage = useAnalysisStore((state) => state.setErrorMessage)
   const clearErrorMessage = useAnalysisStore((state) => state.clearErrorMessage)
   const resetAnalysis = useAnalysisStore((state) => state.resetAnalysis)
+  const profile = useUserStore((state) => state.profile)
   const [isRetrying, setIsRetrying] = useState(false)
   const [previewSize, setPreviewSize] = useState<{ width: number; height: number } | null>(null)
   const pollAttemptRef = useRef(0)
@@ -214,6 +216,11 @@ export default function ResultPage() {
           <Text className='text-xs font-bold uppercase tracking-widest text-amber-500'>Analysis Result</Text>
           <Text className='text-2xl font-extrabold leading-tight text-gray-900'>识别与评分结果</Text>
           <Text className='text-sm leading-relaxed text-gray-500 mt-1'>{statusText}</Text>
+          {profile ? (
+            <Text className='mt-1 text-sm leading-relaxed text-amber-600'>
+              当前剩余识别次数：{profile.remainingCredits}
+            </Text>
+          ) : null}
         </View>
 
         {preview ? (

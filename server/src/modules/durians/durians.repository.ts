@@ -22,6 +22,7 @@ export class DrizzleDurianAnalysisRepository implements DurianAnalysisRepository
     const [task] = await this.db
       .insert(analysisTasks)
       .values({
+        userId: input.userId,
         sourceImagePath: input.sourceImagePath ?? null,
         sourceImageUrl: input.sourceImageUrl,
       })
@@ -122,6 +123,7 @@ export class DrizzleDurianAnalysisRepository implements DurianAnalysisRepository
       sourceImagePath: task.sourceImagePath,
       sourceImageUrl: task.sourceImageUrl,
       status: task.status,
+      userId: task.userId,
       updatedAt: task.updatedAt,
     };
   }

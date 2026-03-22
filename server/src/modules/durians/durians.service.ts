@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { LoggerService } from '../../core/logger/logger.service';
+import { UsersService } from '../users/users.service';
 import { AiService } from '../ai/ai.service';
 import { UploadsService } from '../uploads/uploads.service';
 import { DURIAN_ANALYSIS_REPOSITORY } from './durians.constants';
@@ -27,14 +28,18 @@ export class DuriansService {
     private readonly aiService: AiService,
     private readonly cvService: CvService,
     private readonly uploadsService: UploadsService,
+    private readonly usersService: UsersService,
     private readonly logger: LoggerService,
   ) {}
 
   async createAnalysisTask(input: {
+    userId: number;
     imagePath?: string;
     imageUrl: string;
-  }): Promise<AnalysisTask> {
+  }): Promise<AnalysisTask & { remainingCredits: number }> {
+    const userProfile = await this.usersService.consumeAnalyzeCredit(input.userId);
     const task = await this.repository.createTask({
+      userId: input.userId,
       sourceImagePath: input.imagePath,
       sourceImageUrl: input.imageUrl,
     });
@@ -49,7 +54,10 @@ export class DuriansService {
     );
 
     this.scheduleTaskProcessing(task.id);
-    return task;
+    return {
+      ...task,
+      remainingCredits: userProfile.remainingCredits,
+    };
   }
 
   async getAnalysisTask(taskId: string): Promise<AnalysisTask> {

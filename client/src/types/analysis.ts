@@ -8,6 +8,7 @@ export type AnalysisTaskStatus =
 export interface CreateAnalysisTaskResponse {
   status: AnalysisTaskStatus
   taskId: string
+  remainingCredits: number
 }
 
 export interface AnalysisTask {

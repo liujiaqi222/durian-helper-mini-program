@@ -87,9 +87,20 @@ describe('Durian analysis endpoints (e2e)', () => {
     }
   });
 
+  async function loginAndGetToken(code: string): Promise<string> {
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ code })
+      .expect(201);
+
+    return (response.body as { data: { token: string } }).data.token;
+  }
+
   it('creates an analysis task from a direct file upload', async () => {
+    const token = await loginAndGetToken('test-code-durian-a');
     const response = await request(app.getHttpServer())
       .post('/api/v1/durians/analyze')
+      .set('Authorization', `Bearer ${token}`)
       .attach('file', pngPixelBuffer, {
         contentType: 'image/png',
         filename: 'durian.png',
@@ -110,8 +121,10 @@ describe('Durian analysis endpoints (e2e)', () => {
   });
 
   it('returns progress data and final scored result', async () => {
+    const token = await loginAndGetToken('test-code-durian-b');
     const createResponse = await request(app.getHttpServer())
       .post('/api/v1/durians/analyze')
+      .set('Authorization', `Bearer ${token}`)
       .attach('file', pngPixelBuffer, {
         contentType: 'image/png',
         filename: 'durian.png',
@@ -126,6 +139,7 @@ describe('Durian analysis endpoints (e2e)', () => {
     for (let attempt = 0; attempt < 20; attempt += 1) {
       taskResponse = await request(app.getHttpServer())
         .get(`/api/v1/durians/tasks/${taskId}`)
+        .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
       if ((taskResponse.body as { data: { status: string } }).data.status === 'DONE') {
@@ -144,6 +158,7 @@ describe('Durian analysis endpoints (e2e)', () => {
 
     const resultResponse = await request(app.getHttpServer())
       .get(`/api/v1/durians/tasks/${taskId}/result`)
+      .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
     expect((resultResponse.body as { data: unknown }).data).toMatchObject({
@@ -170,8 +185,10 @@ describe('Durian analysis endpoints (e2e)', () => {
   });
 
   it('rejects analyze requests without a file', async () => {
+    const token = await loginAndGetToken('test-code-durian-c');
     const response = await request(app.getHttpServer())
       .post('/api/v1/durians/analyze')
+      .set('Authorization', `Bearer ${token}`)
       .expect(400);
 
     expect(response.body.message).toBe('file is required');

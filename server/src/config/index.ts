@@ -6,6 +6,13 @@ export interface AppConfig {
   postgres?: string;
   redis?: string;
   publicBaseUrl: string;
+  jwt: {
+    secret?: string;
+  };
+  wechat: {
+    appId?: string;
+    appSecret?: string;
+  };
   cvService: {
     baseUrl: string;
   };
@@ -25,6 +32,13 @@ export default (): AppConfig => ({
   publicBaseUrl:
     process.env.PUBLIC_BASE_URL ||
     `http://127.0.0.1:${Number(process.env.PORT || 3000)}`,
+  jwt: {
+    secret: process.env.JWT_SECRET,
+  },
+  wechat: {
+    appId: process.env.WECHAT_APP_ID,
+    appSecret: process.env.WECHAT_APP_SECRET,
+  },
   cvService: {
     baseUrl: process.env.CV_SERVICE_BASE_URL || 'http://127.0.0.1:8010',
   },

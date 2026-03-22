@@ -5,10 +5,14 @@ import {
   Param,
   Post,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { LoggerService } from '../../core/logger/logger.service';
+import { AuthGuard } from '../auth/auth.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/auth.types';
 import { TaskIdParamDto } from './dto/task-id-param.dto';
 import { DuriansService } from './durians.service';
 import { UploadedImageFile, UploadsService } from '../uploads/uploads.service';
@@ -22,8 +26,12 @@ export class DuriansController {
   ) {}
 
   @Post('analyze')
+  @UseGuards(AuthGuard)
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
-  async createAnalysisTask(@UploadedFile() file: UploadedImageFile | undefined) {
+  async createAnalysisTask(
+    @CurrentUser() user: AuthenticatedUser,
+    @UploadedFile() file: UploadedImageFile | undefined,
+  ) {
     if (!file) {
       throw new BadRequestException('file is required');
     }
@@ -47,6 +55,7 @@ export class DuriansController {
       'DuriansController',
     );
     const task = await this.duriansService.createAnalysisTask({
+      userId: user.userId,
       imagePath: storedImage.localPath,
       imageUrl: storedImage.filePath,
     });
@@ -58,6 +67,7 @@ export class DuriansController {
       'DuriansController',
     );
     return {
+      remainingCredits: task.remainingCredits,
       status: task.status,
       taskId: task.id,
     };

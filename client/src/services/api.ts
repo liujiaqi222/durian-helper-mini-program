@@ -4,13 +4,17 @@ import type {
   AnalysisTask,
   CreateAnalysisTaskResponse,
 } from '../types/analysis'
+import type { LoginResponse, UserProfile } from '../types/user'
 
 const DEFAULT_API_BASE_URL = 'http://127.0.0.1:3000/api/v1'
 const API_BASE_URL = __API_BASE_URL__ || DEFAULT_API_BASE_URL
+const AUTH_TOKEN_STORAGE_KEY = 'durian_auth_token'
+const AUTH_USER_STORAGE_KEY = 'durian_auth_user'
 
 interface RequestOptions {
   method?: 'GET' | 'POST'
   data?: Record<string, unknown>
+  requiresAuth?: boolean
 }
 
 interface ApiEnvelope<T> {
@@ -19,19 +23,40 @@ interface ApiEnvelope<T> {
   message: string
 }
 
+interface AuthSession {
+  token: string
+  user: UserProfile
+}
+
+let authSession: AuthSession | null = null
+let loginPromise: Promise<AuthSession> | null = null
+
 function joinUrl(path: string): string {
   return `${API_BASE_URL}${path}`
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const session = options.requiresAuth === false ? null : await ensureAuthSession()
   const response = await Taro.request<ApiEnvelope<T>>({
     url: joinUrl(path),
     method: options.method || 'GET',
     data: options.data,
     header: {
+      ...(session ? { Authorization: `Bearer ${session.token}` } : {}),
       'content-type': 'application/json',
     },
   })
+
+  if (response.statusCode === 401 && options.requiresAuth !== false) {
+    clearAuthSession()
+    const refreshedSession = await ensureAuthSession(true)
+    authSession = refreshedSession
+
+    return request<T>(path, {
+      ...options,
+      requiresAuth: true,
+    })
+  }
 
   if (response.statusCode < 200 || response.statusCode >= 300) {
     throw new Error(readErrorMessage(response.data) || '请求失败，请稍后重试')
@@ -57,11 +82,125 @@ function readErrorMessage(data: unknown): string | null {
   return null
 }
 
+function readStoredSession(): AuthSession | null {
+  try {
+    const token = Taro.getStorageSync<string>(AUTH_TOKEN_STORAGE_KEY)
+    const user = Taro.getStorageSync<UserProfile>(AUTH_USER_STORAGE_KEY)
+
+    if (!token || !user) {
+      return null
+    }
+
+    return { token, user }
+  } catch {
+    return null
+  }
+}
+
+function persistAuthSession(session: AuthSession): void {
+  authSession = session
+  Taro.setStorageSync(AUTH_TOKEN_STORAGE_KEY, session.token)
+  Taro.setStorageSync(AUTH_USER_STORAGE_KEY, session.user)
+}
+
+function clearAuthSession(): void {
+  authSession = null
+  Taro.removeStorageSync(AUTH_TOKEN_STORAGE_KEY)
+  Taro.removeStorageSync(AUTH_USER_STORAGE_KEY)
+}
+
+async function loginWithMiniProgram(inviterCode?: string): Promise<AuthSession> {
+  const loginResult = await Taro.login()
+  if (!loginResult.code) {
+    throw new Error('微信登录失败，请稍后重试')
+  }
+
+  const response = await Taro.request<ApiEnvelope<LoginResponse>>({
+    url: joinUrl('/auth/login'),
+    method: 'POST',
+    data: {
+      code: loginResult.code,
+      ...(inviterCode ? { inviterCode } : {}),
+    },
+    header: {
+      'content-type': 'application/json',
+    },
+  })
+
+  if (response.statusCode < 200 || response.statusCode >= 300) {
+    throw new Error(readErrorMessage(response.data) || '登录失败，请稍后重试')
+  }
+
+  const session = response.data.data
+  persistAuthSession(session)
+  return session
+}
+
+async function ensureAuthSession(forceRefresh = false, inviterCode?: string): Promise<AuthSession> {
+  if (!forceRefresh) {
+    if (!authSession) {
+      authSession = readStoredSession()
+    }
+
+    if (authSession) {
+      return authSession
+    }
+
+    if (loginPromise) {
+      return loginPromise
+    }
+  }
+
+  loginPromise = loginWithMiniProgram(inviterCode).finally(() => {
+    loginPromise = null
+  })
+
+  return loginPromise
+}
+
+export async function bootstrapSession(inviterCode?: string): Promise<UserProfile> {
+  const session = await ensureAuthSession(false, inviterCode)
+
+  try {
+    const profile = await request<UserProfile>('/users/me')
+    updateCachedUser(profile)
+    return profile
+  } catch {
+    clearAuthSession()
+    const refreshed = await ensureAuthSession(true, inviterCode)
+    return refreshed.user
+  }
+}
+
+export function getCachedUserProfile(): UserProfile | null {
+  if (!authSession) {
+    authSession = readStoredSession()
+  }
+
+  return authSession?.user || null
+}
+
+export function updateCachedUser(profile: UserProfile): void {
+  const session = authSession || readStoredSession()
+  if (!session) {
+    return
+  }
+
+  persistAuthSession({
+    token: session.token,
+    user: profile,
+  })
+}
+
 export async function createAnalysisTask(filePath: string): Promise<CreateAnalysisTaskResponse> {
+  const session = await ensureAuthSession()
   const response = await Taro.uploadFile({
     url: joinUrl('/durians/analyze'),
     filePath,
     name: 'file',
+    header: {
+      Authorization: `Bearer ${session.token}`,
+    },
   })
 
   if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -77,7 +216,16 @@ export async function createAnalysisTask(filePath: string): Promise<CreateAnalys
     throw new Error(message)
   }
 
-  return (JSON.parse(response.data) as ApiEnvelope<CreateAnalysisTaskResponse>).data
+  const data = (JSON.parse(response.data) as ApiEnvelope<CreateAnalysisTaskResponse>).data
+  if (authSession) {
+    updateCachedUser({
+      ...authSession.user,
+      remainingCredits: data.remainingCredits,
+      usedCredits: authSession.user.usedCredits + 1,
+    })
+  }
+
+  return data
 }
 
 export function getAnalysisTask(taskId: string): Promise<AnalysisTask> {
@@ -91,5 +239,15 @@ export function getAnalysisResult(taskId: string): Promise<AnalysisResult> {
 export function retryAnalysisTask(taskId: string): Promise<AnalysisTask> {
   return request<AnalysisTask>(`/durians/tasks/${taskId}/retry`, {
     method: 'POST',
+  })
+}
+
+export function grantAdReward(): Promise<UserProfile> {
+  return request<UserProfile>('/users/me/rewards/ad', {
+    method: 'POST',
+    data: {},
+  }).then((profile) => {
+    updateCachedUser(profile)
+    return profile
   })
 }

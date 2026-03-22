@@ -27,6 +27,7 @@ export interface AnalysisTaskItem {
 
 export interface AnalysisTask {
   id: string;
+  userId: number;
   sourceImagePath: string | null;
   sourceImageUrl: string;
   detectedCount: number;
@@ -45,6 +46,7 @@ export interface AnalysisTaskWithItems extends AnalysisTask {
 }
 
 export interface CreateAnalysisTaskInput {
+  userId: number;
   sourceImagePath?: string | null;
   sourceImageUrl: string;
 }

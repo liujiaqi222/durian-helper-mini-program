@@ -31,6 +31,9 @@ import { LoggerService } from './logger/logger.service';
         if (!isTest && !env.ARK_API_KEY?.trim()) {
           throw new Error('Missing required env var: ARK_API_KEY');
         }
+        if (!isTest && !env.JWT_SECRET?.trim()) {
+          throw new Error('Missing required env var: JWT_SECRET');
+        }
         return env;
       },
     }),
