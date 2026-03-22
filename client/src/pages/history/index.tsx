@@ -3,6 +3,7 @@ import Taro, { useLoad } from '@tarojs/taro'
 import { useState } from 'react'
 import { getAnalysisHistory } from '../../services/api'
 import type { AnalysisHistoryItem } from '../../types/analysis'
+import { getStatusDescription } from '../../utils/analysis'
 
 function formatHistoryTime(value: string): string {
   const date = new Date(value)
@@ -59,7 +60,7 @@ export default function HistoryPage() {
   }
 
   return (
-    <View className='min-h-screen bg-gradient-to-br from-yellow-50 via-white to-amber-50 px-4 py-4 pb-8'>
+    <View className='min-h-screen bg-linear-to-br from-yellow-50 via-white to-amber-50 px-4 py-4 pb-8'>
       <View className='flex flex-col gap-4'>
         <View className='rounded-3xl border border-yellow-100 bg-white px-5 py-4 shadow-sm'>
           <View className='text-lg font-bold text-gray-900'>最近 20 条分析榴莲记录</View>
@@ -102,7 +103,7 @@ export default function HistoryPage() {
                     识别到 {item.detectedCount} 个榴莲
                   </Text>
                   <Text className='text-xs font-medium text-amber-700'>
-                    {item.status}
+                    {getStatusDescription(item.status)}
                   </Text>
                 </View>
               </View>

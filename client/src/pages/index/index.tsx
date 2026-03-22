@@ -96,11 +96,7 @@ export default function Index() {
   }
 
   const remainingCreditsText = isBootstrapping ? '登录中...' : `剩余 ${profile?.remainingCredits ?? 0} 次`
-  const inviteSummaryText = isBootstrapping
-    ? '正在同步次数'
-    : (profile?.remainingCredits ?? 0) > 0
-      ? '邀请好友可继续增加次数'
-      : '邀请新用户登录后自动到账'
+  
   const primaryButtonText = isSubmitting
     ? '分析中...'
     : !localImagePath
@@ -112,7 +108,7 @@ export default function Index() {
     isSubmitting || isBootstrapping || (!!localImagePath && !profile?.remainingCredits)
 
   return (
-    <View className='min-h-screen bg-gradient-to-br from-yellow-50 via-white to-amber-50 px-4 py-6'>
+    <View className='min-h-screen bg-linear-to-br from-yellow-50 via-white to-amber-50 px-4 py-6'>
       <View className='flex flex-col gap-5'>
         <View className='flex flex-col gap-3 rounded-3xl border border-yellow-100 bg-white px-6 py-5 shadow-sm'>
           <View className='flex items-start justify-between gap-4'>

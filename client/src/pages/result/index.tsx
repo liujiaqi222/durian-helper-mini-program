@@ -246,7 +246,7 @@ export default function ResultPage() {
   }, [preview?.imageUrl])
 
   return (
-    <View className='min-h-screen bg-gradient-to-br from-yellow-50 via-white to-amber-50 px-4 py-4 text-gray-800 pb-12'>
+    <View className='min-h-screen bg-linear-to-br from-yellow-50 via-white to-amber-50 px-4 py-4 text-gray-800 pb-12'>
       <View className='flex flex-col gap-4'>
         <View className='flex flex-wrap gap-2 px-1'>
           <View className='rounded-full border border-amber-100 bg-white/90 px-3 py-1.5 shadow-sm'>
@@ -286,7 +286,7 @@ export default function ResultPage() {
           if (section === 'recommended' && recommendedItem) {
             return (
               <View
-                className='flex flex-col items-center gap-2 rounded-3xl bg-gradient-to-b from-amber-100 to-amber-50 p-5 text-center shadow-md border border-amber-200'
+                className='flex flex-col items-center gap-2 rounded-3xl bg-linear-to-b from-amber-100 to-amber-50 p-5 text-center shadow-md border border-amber-200'
                 key='recommended'
               >
                 <Text className='text-sm font-bold tracking-wide text-amber-700'>最佳推荐</Text>
