@@ -38,6 +38,14 @@ function joinUrl(path: string): string {
   return `${API_BASE_URL}${path}`
 }
 
+function getApiOrigin(): string {
+  if (!API_BASE_URL) {
+    throw new Error('缺少环境变量 TARO_APP_API_BASE_URL')
+  }
+
+  return new URL(API_BASE_URL).origin
+}
+
 function resolveAssetUrl(url: string | null | undefined): string {
   if (!url) {
     return ''
@@ -47,7 +55,8 @@ function resolveAssetUrl(url: string | null | undefined): string {
     return url
   }
 
-  return joinUrl(url.startsWith('/') ? url : `/${url}`)
+  const normalizedPath = url.startsWith('/') ? url : `/${url}`
+  return `${getApiOrigin()}${normalizedPath}`
 }
 
 function normalizeAnalysisTask(task: AnalysisTask): AnalysisTask {
