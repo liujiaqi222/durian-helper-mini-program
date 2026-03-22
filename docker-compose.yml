@@ -15,8 +15,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    ports:
-      - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
 
@@ -29,8 +27,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    ports:
-      - "6379:6379"
     volumes:
       - redis-data:/data
 
@@ -50,8 +46,6 @@ services:
       timeout: 10s
       retries: 5
       start_period: 40s
-    ports:
-      - "8010:8010"
 
   backend:
     build:
