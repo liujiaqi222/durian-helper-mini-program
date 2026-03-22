@@ -162,9 +162,7 @@ describe('Durian analysis endpoints (e2e)', () => {
       .expect(200);
 
     expect((resultResponse.body as { data: unknown }).data).toMatchObject({
-      sourceImageUrl: expect.stringMatching(
-        /^http:\/\/127\.0\.0\.1:\d+\/uploads\/upload-/,
-      ),
+      sourceImageUrl: expect.stringMatching(/^\/uploads\/upload-/),
       overallSummary: 'A 综合表现最好，B 次之。',
       recommendedLabel: 'A',
       items: [

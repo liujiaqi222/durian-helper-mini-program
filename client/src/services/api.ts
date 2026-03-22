@@ -38,6 +38,32 @@ function joinUrl(path: string): string {
   return `${API_BASE_URL}${path}`
 }
 
+function resolveAssetUrl(url: string | null | undefined): string {
+  if (!url) {
+    return ''
+  }
+
+  if (/^https?:\/\//i.test(url)) {
+    return url
+  }
+
+  return joinUrl(url.startsWith('/') ? url : `/${url}`)
+}
+
+function normalizeAnalysisTask(task: AnalysisTask): AnalysisTask {
+  return {
+    ...task,
+    sourceImageUrl: resolveAssetUrl(task.sourceImageUrl),
+  }
+}
+
+function normalizeAnalysisResult(result: AnalysisResult): AnalysisResult {
+  return {
+    ...result,
+    sourceImageUrl: resolveAssetUrl(result.sourceImageUrl),
+  }
+}
+
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const session = options.requiresAuth === false ? null : await ensureAuthSession()
   const response = await Taro.request<ApiEnvelope<T>>({
@@ -231,17 +257,17 @@ export async function createAnalysisTask(filePath: string): Promise<CreateAnalys
 }
 
 export function getAnalysisTask(taskId: string): Promise<AnalysisTask> {
-  return request<AnalysisTask>(`/durians/tasks/${taskId}`)
+  return request<AnalysisTask>(`/durians/tasks/${taskId}`).then(normalizeAnalysisTask)
 }
 
 export function getAnalysisResult(taskId: string): Promise<AnalysisResult> {
-  return request<AnalysisResult>(`/durians/tasks/${taskId}/result`)
+  return request<AnalysisResult>(`/durians/tasks/${taskId}/result`).then(normalizeAnalysisResult)
 }
 
 export function retryAnalysisTask(taskId: string): Promise<AnalysisTask> {
   return request<AnalysisTask>(`/durians/tasks/${taskId}/retry`, {
     method: 'POST',
-  })
+  }).then(normalizeAnalysisTask)
 }
 
 export function grantAdReward(): Promise<UserProfile> {

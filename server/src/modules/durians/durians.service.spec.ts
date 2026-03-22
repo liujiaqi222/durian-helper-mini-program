@@ -175,7 +175,7 @@ describe('DuriansService', () => {
 
     const storedTask = await service.getAnalysisTask(task.id);
     expect(storedTask.status).toBe('DONE');
-    expect(storedTask.sourceImageUrl).toBe('http://localhost:3000/uploads/durian.png');
+    expect(storedTask.sourceImageUrl).toBe('/uploads/durian.png');
     expect(storedTask.detectedCount).toBe(1);
     expect(storedTask.detectedLabels).toEqual(['A']);
     expect(storedTask.overallSummary).toBe('A 综合表现最好。');

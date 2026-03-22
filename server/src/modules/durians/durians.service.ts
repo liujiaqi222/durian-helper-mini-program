@@ -254,7 +254,7 @@ export class DuriansService {
     return {
       ...task,
       rawResult: task.rawResult,
-      sourceImageUrl: this.uploadsService.buildPublicUrl(task.sourceImageUrl) ?? '',
+      sourceImageUrl: task.sourceImageUrl ?? '',
     };
   }
 }
