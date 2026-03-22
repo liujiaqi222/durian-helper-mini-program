@@ -182,7 +182,7 @@ export default function Index() {
             <View className='flex items-center justify-between rounded-2xl border border-amber-100 bg-white px-1 py-1'>
               <View className='flex-1 px-3 py-2'>
                 <View className='text-sm font-semibold text-gray-900'>{remainingCreditsText}</View>
-                <Text className='mt-1 text-xs leading-relaxed text-gray-500'>邀请好友可增加次数，新用户登录后自动到账。</Text>
+                <Text className='mt-1 text-xs leading-relaxed text-gray-500'>邀请好友可增加次数，新用户打开后自动到账。</Text>
               </View>
               <Button
                 className='m-0 mr-1 flex h-9 items-center justify-center rounded-full bg-gray-900 px-4 text-xs font-bold text-white'
