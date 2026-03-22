@@ -90,6 +90,11 @@ export default function Index() {
   }
 
   const remainingCreditsText = isBootstrapping ? '登录中...' : `剩余 ${profile?.remainingCredits ?? 0} 次`
+  const inviteSummaryText = isBootstrapping
+    ? '正在同步次数'
+    : (profile?.remainingCredits ?? 0) > 0
+      ? '邀请好友可继续增加次数'
+      : '邀请新用户登录后自动到账'
   const primaryButtonText = isSubmitting
     ? '分析中...'
     : !localImagePath
@@ -143,7 +148,6 @@ export default function Index() {
           )}
 
           <View className='mt-2 flex flex-col gap-3'>
-
             <View
               className={`flex w-full items-center justify-center rounded-2xl py-3 text-base font-bold transition-all ${primaryButtonDisabled
                   ? 'bg-amber-300 text-white opacity-70 cursor-not-allowed'
@@ -170,11 +174,11 @@ export default function Index() {
               >
                 去邀请
               </Button>
-            </View>
+          </View>
 
-            {authError ? (
-              <Text className='text-sm leading-relaxed text-red-500'>{authError}</Text>
-            ) : null}
+          {authError ? (
+            <Text className='text-sm leading-relaxed text-red-500'>{authError}</Text>
+          ) : null}
           </View>
         </View>
 
