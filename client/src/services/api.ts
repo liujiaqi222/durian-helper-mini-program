@@ -198,7 +198,8 @@ async function ensureAuthSession(forceRefresh = false, inviterCode?: string): Pr
 }
 
 export async function bootstrapSession(inviterCode?: string): Promise<UserProfile> {
-
+  // Ensure inviterCode is included in the first login when there is no cached session.
+  await ensureAuthSession(false, inviterCode)
   try {
     const profile = await request<UserProfile>('/users/me')
     updateCachedUser(profile)
