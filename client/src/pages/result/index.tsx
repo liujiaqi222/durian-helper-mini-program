@@ -2,6 +2,7 @@ import { Image, Text, View } from '@tarojs/components'
 import Taro, { getCurrentInstance, useLoad, useShareAppMessage } from '@tarojs/taro'
 import { useEffect, useRef, useState } from 'react'
 import { getAnalysisResult, getAnalysisTask, retryAnalysisTask } from '../../services/api'
+import shareCover from '../../assets/share-cover.png'
 import { useAnalysisStore } from '../../store/analysis'
 import { useUserStore } from '../../store/user'
 import type { AnalysisTaskDetectionItem } from '../../types/analysis'
@@ -68,8 +69,7 @@ export default function ResultPage() {
       ? `我刚挑出了更推荐的 ${recommendedItem.label}，你也来看看`
       : '我刚用榴莲挑选助手分析了一张图，分享给你看看',
     path: buildResultSharePath(profile?.inviteCode || '', activeTaskId),
-    imageUrl:'../../assets/share-image.png',
-
+    imageUrl: shareCover,
   }))
 
   useEffect(() => {

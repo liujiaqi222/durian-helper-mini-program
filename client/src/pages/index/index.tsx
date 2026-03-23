@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { createAnalysisTask } from '../../services/api'
 import { useAnalysisStore } from '../../store/analysis'
 import { useUserStore } from '../../store/user'
+import shareCover from '../../assets/share-cover.png'
 import { buildInviteSharePath } from '../../utils/user'
 
 export default function Index() {
@@ -23,7 +24,7 @@ export default function Index() {
   useShareAppMessage(() => ({
     title: '我在用榴莲挑选助手，分享给你一起领额外次数',
     path: buildInviteSharePath(profile?.inviteCode || ''),
-    imageUrl:'../../assets/share-image.png',
+    imageUrl: shareCover,
   }))
 
   async function handleChooseImage() {
