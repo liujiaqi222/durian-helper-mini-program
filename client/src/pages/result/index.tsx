@@ -68,6 +68,8 @@ export default function ResultPage() {
       ? `我刚挑出了更推荐的 ${recommendedItem.label}，你也来看看`
       : '我刚用榴莲挑选助手分析了一张图，分享给你看看',
     path: buildResultSharePath(profile?.inviteCode || '', activeTaskId),
+    imageUrl:'../../assets/share-image.png',
+
   }))
 
   useEffect(() => {

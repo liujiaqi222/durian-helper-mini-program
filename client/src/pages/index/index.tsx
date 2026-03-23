@@ -23,6 +23,7 @@ export default function Index() {
   useShareAppMessage(() => ({
     title: '我在用榴莲挑选助手，分享给你一起领额外次数',
     path: buildInviteSharePath(profile?.inviteCode || ''),
+    imageUrl:'../../assets/share-image.png',
   }))
 
   async function handleChooseImage() {
