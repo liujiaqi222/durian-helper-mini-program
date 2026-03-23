@@ -234,9 +234,6 @@ class DurianDetector:
         if high_confidence_items:
             return self._top_by_confidence(high_confidence_items), None
 
-        fallback_items = [item for item in items if item.confidence > 0.6]
-        if fallback_items:
-            return self._top_by_confidence(fallback_items), None
 
         return [], "没有识别到榴莲"
 
